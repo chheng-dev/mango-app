@@ -62,14 +62,14 @@ export const userQueries = {
     return (result.rowCount ?? 0) > 0;
   },
 
-  async updateLastLogin(id: number): Promise<void> {
-    await db
-      .update(users)
-      .set({ 
-        lastLoginAt: new Date(),
-        updatedAt: new Date(),
-        version: sql`${users.version} + 1`
-      })
-      .where(eq(users.id, id));
-  },
+//   async updateLastLogin(id: number): Promise<void> {
+//     await db
+//       .update(users)
+//       .set({ 
+//         lastLoginAt: new Date(),
+//         updatedAt: new Date(),
+//         version: sql`${users.version} + 1`
+//       })
+//       .where(eq(users.id, id));
+//   },
 };
