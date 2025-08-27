@@ -1,15 +1,18 @@
-import { pgTable, serial, varchar, text, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, timestamp, boolean } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 // Users table with audit fields
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  firstName: varchar('first_name', { length: 100 }).notNull(),
-  lastName: varchar('last_name', { length: 100 }).notNull(),
+  code: varchar('code', { length: 100 }).notNull().unique(),
+  name: varchar('name', { length: 200 }).notNull(),
+  dob: timestamp('dob'),
+  phoneNumber: varchar('phone_number', { length: 20 }),
+  passwordHash: text('password_hash').notNull(),
+  passwordConfirmation: text('password_confirmation').notNull(),
   isActive: boolean('is_active').default(true),
-  lastLoginAt: timestamp('last_login_at'),
-  version: integer('version').default(1),
+  isVerified: boolean('is_verified').default(false),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

@@ -1,14 +1,17 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface User {
   id: number;
   email: string;
-  firstName: string;
-  lastName: string;
+  code: string;
+  name: string;
+  dob?: string;
+  phoneNumber?: string;
   isActive: boolean;
+  isVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,10 +42,16 @@ export default function Home() {
   const createSampleUser = async () => {
     setLoading(true);
     try {
+      const timestamp = Date.now();
       const sampleUser = {
-        email: `user${Date.now()}@example.com`,
-        firstName: 'John',
-        lastName: 'Doe'
+        email: `user${timestamp}@example.com`,
+        code: `USR${timestamp}`,
+        name: 'John Doe',
+        phoneNumber: '+1234567890',
+        passwordHash: 'hashed_password_placeholder',
+        passwordConfirmation: 'hashed_password_placeholder',
+        isActive: true,
+        isVerified: false
       };
 
       const response = await fetch('/api/users', {
@@ -112,13 +121,22 @@ export default function Home() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {users.map((user) => (
                 <div key={user.id} className="border rounded-lg p-4 bg-background">
-                  <div className="font-medium">{user.firstName} {user.lastName}</div>
+                  <div className="font-medium">{user.name}</div>
                   <div className="text-sm text-muted-foreground">{user.email}</div>
+                  <div className="text-sm text-muted-foreground">Code: {user.code}</div>
+                  {user.phoneNumber && (
+                    <div className="text-sm text-muted-foreground">Phone: {user.phoneNumber}</div>
+                  )}
                   <div className="text-xs text-muted-foreground mt-2">
                     Created: {new Date(user.createdAt).toLocaleDateString()}
                   </div>
-                  <div className={`text-xs mt-1 ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
-                    {user.isActive ? 'Active' : 'Inactive'}
+                  <div className="flex gap-2 mt-1">
+                    <div className={`text-xs ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </div>
+                    <div className={`text-xs ${user.isVerified ? 'text-blue-600' : 'text-yellow-600'}`}>
+                      {user.isVerified ? 'Verified' : 'Unverified'}
+                    </div>
                   </div>
                 </div>
               ))}
