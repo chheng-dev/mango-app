@@ -79,7 +79,7 @@ export abstract class BaseController<TSelect, TInsert> {
    * Transform data before save - override in child classes
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected transformForSave(data: any): any {
+  protected async transformForSave(data: any): Promise<any> {
     return data;
   }
 
@@ -104,7 +104,7 @@ export abstract class BaseController<TSelect, TInsert> {
         };
       }
 
-      const transformedData = this.transformForSave(data);
+      const transformedData = await this.transformForSave(data);
       const result = await db.insert(this.table).values(transformedData).returning() as TSelect[];
       
       if (!result || result.length === 0) {
@@ -245,7 +245,7 @@ export abstract class BaseController<TSelect, TInsert> {
         };
       }
 
-      const transformedData = this.transformForSave({
+      const transformedData = await this.transformForSave({
         ...data,
         updatedAt: new Date()
       });
@@ -350,7 +350,9 @@ export abstract class BaseController<TSelect, TInsert> {
         }
       }
 
-      const transformedData = data.map(item => this.transformForSave(item));
+      const transformedData = await Promise.all(
+        data.map(item => this.transformForSave(item))
+      );
       const records = await db.insert(this.table).values(transformedData).returning() as TSelect[];
 
       return {
