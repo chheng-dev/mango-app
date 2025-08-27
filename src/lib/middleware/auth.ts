@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { userController } from '@/lib/controllers/UserController';
+import { AuthService } from '../services/authService';
 
 /**
  * Authentication middleware utility
@@ -30,8 +31,8 @@ export async function authenticateRequest(request: NextRequest): Promise<{
       };
     }
 
-    const result = await userController.verifyToken(token);
-    
+    const result = await AuthService.verifyToken(token);
+
     if (!result.success) {
       return {
         success: false,
