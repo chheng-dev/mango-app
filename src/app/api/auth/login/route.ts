@@ -10,7 +10,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, password } = body;
-    console.log('Login request body:', body);
     if (!email || !password) {
       return NextResponse.json(
         {

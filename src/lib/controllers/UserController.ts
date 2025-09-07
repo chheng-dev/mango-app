@@ -1,9 +1,14 @@
+import { BaseController, ApiResponse } from './BaseController';
+import { User, NewUser } from '../db/schemas/users';
 import { db } from '../db';
-import { users, type User, type NewUser } from '../db/schema';
+import { users } from '../db/schemas/users';
 import { eq } from 'drizzle-orm';
-import { BaseController, ApiResponse, PaginationOptions, SearchOptions } from './BaseController';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { AuthService } from '../services/authService';
+
+export interface LoginResponse {
+  user: User;
+  token: string;
+}
 
 export class UserController extends BaseController<User, NewUser> {
   protected tableName = 'users';
@@ -17,112 +22,108 @@ export class UserController extends BaseController<User, NewUser> {
   }
 
   /**
-   * Generate JWT token for user
+   * User login - clean and simple
    */
-  private generateToken(user: User): string {
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      throw new Error('JWT_SECRET environment variable is not set');
-    }
+  async login(email: string, password: string): Promise<ApiResponse<LoginResponse>> {
+    try {
+      // Find user by email
+      const userResults = await db.select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
 
-    return jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email,
-        code: user.code,
-        isVerified: user.isVerified
-      },
-      jwtSecret,
-      { expiresIn: '24h' }
-    );
+      if (userResults.length === 0) {
+        return { success: false, error: 'Invalid credentials' };
+      }
+
+      const user = userResults[0];
+
+      // Authenticate user
+      const isValid = await AuthService.authenticate(email, password, user.passwordHash);
+      if (!isValid) {
+        return { success: false, error: 'Invalid credentials' };
+      }
+
+      // Generate token
+      const token = await AuthService.generateToken(
+        user.id,
+        user.email,
+        user.code,
+        user.isVerified || false
+      );
+
+      return {
+        success: true,
+        data: {
+          user,
+          token
+        }
+      };
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, error: 'Login failed' };
+    }
   }
 
   /**
-   * Verify JWT secret is available
+   * User registration - clean and simple
    */
-  private getJwtSecret(): string {
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      throw new Error('JWT_SECRET environment variable is not set');
+  async register(userData: {
+    email: string;
+    password: string;
+    passwordConfirmation: string;
+    name: string;
+    code: string;
+  }): Promise<ApiResponse<LoginResponse>> {
+    try {
+      // Validate password strength
+      const passwordValidation = AuthService.validatePassword(userData.password);
+      if (!passwordValidation.isValid) {
+        return { success: false, error: passwordValidation.errors.join(', ') };
+      }
+
+      // Check if passwords match
+      if (userData.password !== userData.passwordConfirmation) {
+        return { success: false, error: 'Passwords do not match' };
+      }
+
+      // Hash password
+      const hashedPassword = await AuthService.hashPassword(userData.password);
+
+      // Create user
+      const newUser = await db.insert(users).values({
+        email: userData.email,
+        passwordHash: hashedPassword,
+        passwordConfirmation: hashedPassword,
+        name: userData.name,
+        code: userData.code
+      }).returning();
+
+      if (newUser.length === 0) {
+        return { success: false, error: 'Failed to create user' };
+      }
+
+      const user = newUser[0];
+
+      // Generate token
+      const token = await AuthService.generateToken(
+        user.id,
+        user.email,
+        user.code,
+        user.isVerified || false
+      );
+
+      return {
+        success: true,
+        data: {
+          user,
+          token
+        }
+      };
+    } catch (error) {
+      console.error('Registration error:', error);
+      return { success: false, error: 'Registration failed' };
     }
-    return jwtSecret;
-  }
-
-  /**
-   * Custom validation for users
-   */
-  protected async validate(data: any, isUpdate = false): Promise<Array<{field: string, message: string}>> {
-    const errors = await super.validate(data, isUpdate);
-
-    // Email validation
-    if (data.email && !/\S+@\S+\.\S+/.test(data.email)) {
-      errors.push({
-        field: 'email',
-        message: 'Invalid email format'
-      });
-    }
-
-    // Password match validation (only for create)
-    if (!isUpdate && data.passwordHash !== data.passwordConfirmation) {
-      errors.push({
-        field: 'passwordConfirmation',
-        message: 'Password confirmation does not match'
-      });
-    }
-
-    // Code validation
-    if (data.code && !/^[A-Z0-9_]+$/.test(data.code)) {
-      errors.push({
-        field: 'code',
-        message: 'Code must contain only uppercase letters, numbers, and underscores'
-      });
-    }
-
-    return errors;
-  }
-
-  /**
-   * Transform data before saving
-   */
-  protected async transformForSave(data: any): Promise<any> {
-    const transformed = { ...data };
-
-    // Ensure code is uppercase
-    if (transformed.code) {
-      transformed.code = transformed.code.toUpperCase();
-    }
-
-    // Trim name
-    if (transformed.name) {
-      transformed.name = transformed.name.trim();
-    }
-
-    // Lowercase email
-    if (transformed.email) {
-      transformed.email = transformed.email.toLowerCase().trim();
-    }
-
-    // Hash password if provided
-    if (transformed.passwordHash && typeof transformed.passwordHash === 'string') {
-      const saltRounds = 12;
-      transformed.passwordHash = await bcrypt.hash(transformed.passwordHash, saltRounds);
-    }
-
-    // Hash password confirmation if provided (for validation purposes)
-    if (transformed.passwordConfirmation && typeof transformed.passwordConfirmation === 'string') {
-      const saltRounds = 12;
-      transformed.passwordConfirmation = await bcrypt.hash(transformed.passwordConfirmation, saltRounds);
-    }
-
-    return transformed;
-  }
-
-  /**
-   * Transform data after fetching (remove sensitive fields)
-   */
-  protected transformAfterFetch(data: any): any {
-    const { passwordHash, passwordConfirmation, ...safeData } = data;
-    return safeData;
   }
 
   /**
@@ -132,8 +133,8 @@ export class UserController extends BaseController<User, NewUser> {
     try {
       const result = await db
         .select()
-        .from(this.table)
-        .where(eq(this.table.email, email.toLowerCase()));
+        .from(users)
+        .where(eq(users.email, email.toLowerCase()));
 
       if (!result || result.length === 0) {
         return {
@@ -150,7 +151,7 @@ export class UserController extends BaseController<User, NewUser> {
       console.error('Get by email error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch user'
+        error: 'Failed to get user'
       };
     }
   }
@@ -158,14 +159,14 @@ export class UserController extends BaseController<User, NewUser> {
   /**
    * Get user by code
    */
-  async getByCode(code: string) {
+  async getByCode(code: string): Promise<ApiResponse<User>> {
     try {
-      const [record] = await db
+      const result = await db
         .select()
-        .from(this.table)
-        .where(eq(this.table.code, code.toUpperCase()));
+        .from(users)
+        .where(eq(users.code, code.toUpperCase()));
 
-      if (!record) {
+      if (!result || result.length === 0) {
         return {
           success: false,
           error: 'User not found'
@@ -174,26 +175,19 @@ export class UserController extends BaseController<User, NewUser> {
 
       return {
         success: true,
-        data: this.transformAfterFetch(record)
+        data: this.transformAfterFetch(result[0])
       };
     } catch (error) {
       console.error('Get by code error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch user'
+        error: 'Failed to get user'
       };
     }
   }
 
   /**
-   * Verify user email
-   */
-  async verifyEmail(id: number) {
-    return this.update(id, { isVerified: true });
-  }
-
-  /**
-   * Update password
+   * Update user password
    */
   async updatePassword(id: number, newPassword: string, passwordConfirmation: string): Promise<ApiResponse<User>> {
     try {
@@ -204,18 +198,23 @@ export class UserController extends BaseController<User, NewUser> {
         };
       }
 
+      // Validate password strength
+      const passwordValidation = AuthService.validatePassword(newPassword);
+      if (!passwordValidation.isValid) {
+        return { success: false, error: passwordValidation.errors.join(', ') };
+      }
+
       // Hash the new password
-      const saltRounds = 12;
-      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+      const hashedPassword = await AuthService.hashPassword(newPassword);
 
       const result = await db
-        .update(this.table)
+        .update(users)
         .set({ 
           passwordHash: hashedPassword,
           passwordConfirmation: hashedPassword,
           updatedAt: new Date() 
         })
-        .where(eq(this.table.id, id))
+        .where(eq(users.id, id))
         .returning();
 
       if (!result || result.length === 0) {
@@ -234,235 +233,42 @@ export class UserController extends BaseController<User, NewUser> {
       console.error('Update password error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to update password'
+        error: 'Failed to update password'
       };
     }
   }
 
   /**
-   * Bulk update user status (isActive)
+   * Transform data after fetching (remove sensitive fields)
    */
-  async bulkUpdateStatus(ids: number[], isActive: boolean): Promise<ApiResponse<boolean>> {
-    try {
-      const result = await db
-        .update(this.table)
-        .set({ 
-          isActive, 
-          updatedAt: new Date() 
-        })
-        .where(eq(this.table.id, ids[0])); // Note: This is simplified, you'd need to use 'or' for multiple IDs
+  protected transformAfterFetch(data: any): any {
+    const { passwordHash, passwordConfirmation, ...safeData } = data;
+    return safeData;
+  }
 
-      const success = (result.rowCount ?? 0) > 0;
+  /**
+   * Transform data before saving (hash passwords, normalize email)
+   */
+  protected async transformBeforeSave(data: any): Promise<any> {
+    const transformed = { ...data };
 
-      return {
-        success,
-        data: success,
-        message: success ? `Users status updated to ${isActive ? 'active' : 'inactive'}` : 'No users found'
-      };
-    } catch (error) {
-      console.error('Bulk update status error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to update user status'
-      };
+    // Lowercase email
+    if (transformed.email) {
+      transformed.email = transformed.email.toLowerCase().trim();
     }
-  }
 
-  /**
-   * Update user verification status
-   */
-  async updateVerificationStatus(id: number, isVerified: boolean): Promise<ApiResponse<User>> {
-    try {
-      const result = await db
-        .update(this.table)
-        .set({ 
-          isVerified, 
-          updatedAt: new Date() 
-        })
-        .where(eq(this.table.id, id))
-        .returning();
-
-      if (!result || result.length === 0) {
-        return {
-          success: false,
-          error: 'User not found'
-        };
-      }
-
-      return {
-        success: true,
-        data: this.transformAfterFetch(result[0]),
-        message: `User ${isVerified ? 'verified' : 'unverified'} successfully`
-      };
-    } catch (error) {
-      console.error('Update verification status error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to update verification status'
-      };
+    // Hash password if provided
+    if (transformed.passwordHash && typeof transformed.passwordHash === 'string') {
+      transformed.passwordHash = await AuthService.hashPassword(transformed.passwordHash);
     }
-  }
 
-  /**
-   * Get all active users
-   */
-  async getActiveUsers(options: PaginationOptions & SearchOptions = {}): Promise<ApiResponse<User[]>> {
-    const activeFilters = { ...options.filters, isActive: true };
-    return this.getAll({ ...options, filters: activeFilters });
-  }
-
-  /**
-   * Get all inactive users
-   */
-  async getInactiveUsers(options: PaginationOptions & SearchOptions = {}): Promise<ApiResponse<User[]>> {
-    const inactiveFilters = { ...options.filters, isActive: false };
-    return this.getAll({ ...options, filters: inactiveFilters });
-  }
-
-  /**
-   * Get users by verification status
-   */
-  async getUsersByVerificationStatus(isVerified: boolean, options: PaginationOptions & SearchOptions = {}): Promise<ApiResponse<User[]>> {
-    const verificationFilters = { ...options.filters, isVerified };
-    return this.getAll({ ...options, filters: verificationFilters });
-  }
-
-  /**
-   * Authenticate user login
-   */
-  async login(email: string, password: string): Promise<ApiResponse<{ user: User; token: string }>> {
-    try {
-      // Get user by email (including password for verification)
-      const userResult = await db
-        .select()
-        .from(this.table)
-        .where(eq(this.table.email, email.toLowerCase()));
-
-      if (!userResult || userResult.length === 0) {
-        return {
-          success: false,
-          error: 'Invalid email or password'
-        };
-      }
-
-      const user = userResult[0];
-
-      // Check if user is active
-      if (!user.isActive) {
-        return {
-          success: false,
-          error: 'Account is deactivated'
-        };
-      }
-
-      // Verify password using bcrypt
-      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
-      if (!isPasswordValid) {
-        return {
-          success: false,
-          error: 'Invalid email or password'
-        };
-      }
-
-      // Generate JWT token
-      const token = this.generateToken(user);
-
-      return {
-        success: true,
-        data: {
-          user: this.transformAfterFetch(user),
-          token
-        },
-        message: 'Login successful'
-      };
-
-    } catch (error) {
-      console.error('Login error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Login failed'
-      };
+    // Hash password confirmation if provided
+    if (transformed.passwordConfirmation && typeof transformed.passwordConfirmation === 'string') {
+      transformed.passwordConfirmation = await AuthService.hashPassword(transformed.passwordConfirmation);
     }
-  }
 
-  /**
-   * Verify JWT token
-   */
-  async verifyToken(token: string): Promise<ApiResponse<User>> {
-    try {
-      const jwtSecret = this.getJwtSecret();
-      const decoded = jwt.verify(token, jwtSecret) as any;
-
-      if (!decoded || typeof decoded !== 'object' || !decoded.userId) {
-        return {
-          success: false,
-          error: 'Invalid token'
-        };
-      }
-
-      // Get fresh user data
-      const userResult = await this.getById(decoded.userId);
-      
-      if (!userResult.success) {
-        return {
-          success: false,
-          error: 'User not found'
-        };
-      }
-
-      return {
-        success: true,
-        data: userResult.data!,
-        message: 'Token verified'
-      };
-
-    } catch (error) {
-      console.error('Token verification error:', error);
-      return {
-        success: false,
-        error: 'Invalid or expired token'
-      };
-    }
-  }
-
-  /**
-   * Refresh user token
-   */
-  async refreshToken(oldToken: string): Promise<ApiResponse<{ user: User; token: string }>> {
-    try {
-      const verifyResult = await this.verifyToken(oldToken);
-      
-      if (!verifyResult.success) {
-        return {
-          success: false,
-          error: 'Invalid token'
-        };
-      }
-
-      const user = verifyResult.data!;
-
-      // Generate new token
-      const token = this.generateToken(user);
-
-      return {
-        success: true,
-        data: {
-          user,
-          token
-        },
-        message: 'Token refreshed'
-      };
-
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      return {
-        success: false,
-        error: 'Failed to refresh token'
-      };
-    }
+    return transformed;
   }
 }
 
-// Export singleton instance
 export const userController = new UserController();
