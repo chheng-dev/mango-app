@@ -2,21 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import { userController } from '@/lib/controllers/UserController';
 
 /**
- * Get active users only
+ * Get active users only - filtered endpoint
  */
 
-// GET /api/users/active - Get all active users
+// GET /api/users/active - Get all active users with pagination and search
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
-    const query = searchParams.get('q') || searchParams.get('search');
+    const query = searchParams.get('q') || searchParams.get('search') || undefined;
+    const sortBy = searchParams.get('sortBy') || undefined;
+    const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc';
+    const includeRoles = searchParams.get('includeRoles') === 'true';
 
-    const result = await userController.getActiveUsers({
+    // Use the clean service-based getAll method with isActive filter
+    const result = await userController.getAll({
       page,
       limit,
-      query: query || undefined
+      query,
+      sortBy,
+      sortOrder,
+      isActive: true, // Only get active users
+      includeRoles
     });
 
     return NextResponse.json(result, { 
@@ -28,9 +36,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get active users'
+        error: 'Failed to get active users'
       },
       { status: 500 }
     );
   }
 }
+

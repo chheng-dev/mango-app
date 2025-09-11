@@ -2,20 +2,35 @@ import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware/auth';
 import { userController } from '@/lib/controllers/UserController';
 
-/**
- * Protected user profile routes - requires authentication
- */
-
-// GET /api/profile - Get current user's profile (protected)
 export const GET = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const user = request.user;
 
-    return NextResponse.json({
-      success: true,
-      data: user,
-      message: 'Profile retrieved successfully'
-    });
+    if (!user || (!user.id && !user.userId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid user session'
+        },
+        { status: 401 }
+      );
+    }
+
+    // Use userId from JWT token payload
+    const userId = user.id || user.userId;
+    const result = await userController.getCurrentUser(userId);
+    
+    if (result.success) {
+      return NextResponse.json({
+        success: true,
+        data: result.data,
+        message: 'Profile retrieved successfully'
+      });
+    }
+
+    // Log the actual error for debugging
+    console.error('Profile retrieval failed:', result.error);
+    return NextResponse.json(result, { status: 400 });
 
   } catch (error) {
     console.error('Get profile error:', error);
@@ -33,12 +48,49 @@ export const GET = withAuth(async (request: AuthenticatedRequest) => {
 export const PUT = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const user = request.user;
+    
+    // Add validation for user object - check for both id and userId
+    if (!user || (!user.id && !user.userId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid user session'
+        },
+        { status: 401 }
+      );
+    }
+
+    // Use userId from JWT token payload
+    const userId = user.id || user.userId;
     const body = await request.json();
 
     // Remove sensitive fields that shouldn't be updated via this endpoint
-    const { id, email, passwordHash, passwordConfirmation, isActive, isVerified, createdAt, updatedAt, ...updateData } = body;
+    const { 
+      id, 
+      email, 
+      passwordHash, 
+      passwordConfirmation, 
+      isActive, 
+      isVerified, 
+      createdAt, 
+      updatedAt, 
+      ...updateData 
+    } = body;
 
-    const result = await userController.update(user.id, updateData);
+    // Allow name and other safe profile fields to be updated
+    const allowedFields = {
+      name: body.name,
+      code: body.code,
+      ...updateData
+    };
+
+    // Remove undefined values
+    const cleanedData = Object.fromEntries(
+      Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
+    );
+
+    // Use the clean service-based update method
+    const result = await userController.update(userId, cleanedData);
     
     return NextResponse.json(result, { 
       status: result.success ? 200 : 400 
@@ -61,12 +113,28 @@ export const DELETE = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const user = request.user;
 
-    const result = await userController.update(user.id, { isActive: false });
+    // Add validation for user object - check for both id and userId
+    if (!user || (!user.id && !user.userId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid user session'
+        },
+        { status: 401 }
+      );
+    }
+
+    // Use userId from JWT token payload
+    const userId = user.id || user.userId;
+
+    // Use the clean service-based updateStatus method
+    const result = await userController.updateStatus(userId, false);
     
     if (result.success) {
       // Clear auth cookie on account deactivation
       const response = NextResponse.json({
         success: true,
+        data: true,
         message: 'Account deactivated successfully'
       });
 

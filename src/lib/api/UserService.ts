@@ -1,6 +1,6 @@
 import { RequestInit } from "next/dist/server/web/spec-extension/request";
 
-interface User {
+export interface User {
   id: number;
   email: string;
   code: string;
@@ -13,7 +13,7 @@ interface User {
   updatedAt: string;
 }
 
-interface ApiResponse<T> {
+export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
@@ -26,7 +26,6 @@ interface ApiResponse<T> {
   };
 }
 
-// Get auth token from localStorage
 function getAuthToken(): string | null {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('authToken');
@@ -34,7 +33,6 @@ function getAuthToken(): string | null {
   return null;
 }
 
-// Base API request function with error handling
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
