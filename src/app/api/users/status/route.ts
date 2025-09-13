@@ -2,71 +2,76 @@ import { NextRequest, NextResponse } from 'next/server';
 import { userController } from '@/lib/controllers/UserController';
 
 /**
- * Custom routes for user status operations
+ * User Status Management API Routes
+ * PUT /api/users/status - Update single user status
+ * PATCH /api/users/status - Bulk update user status
  */
 
-// PUT /api/users/status?id=123&isActive=true - Update user active status
+// Update single user status
 export async function PUT(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const isActive = searchParams.get('isActive') === 'true';
+    const body = await request.json();
+    const { isActive } = body;
 
     if (!id) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'ID parameter is required'
-        },
+        { success: false, error: 'User ID is required' },
         { status: 400 }
       );
     }
 
-    const result = await userController.update(parseInt(id), { isActive });
-    return NextResponse.json(result, { 
-      status: result.success ? 200 : 400 
-    });
+    if (typeof isActive !== 'boolean') {
+      return NextResponse.json(
+        { success: false, error: 'isActive must be a boolean value' },
+        { status: 400 }
+      );
+    }
 
+    const result = await userController.updateStatus(parseInt(id), isActive);
+
+    return NextResponse.json(result, {
+      status: result.success ? 200 : 400
+    });
   } catch (error) {
-    console.error('Update user status error:', error);
+    console.error('Update user status API error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to update user status'
-      },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/users/status/bulk - Bulk update user status
-export async function POST(request: NextRequest) {
+// Bulk update user status
+export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { ids, isActive } = body;
+    const { userIds, isActive } = body;
 
-    if (!Array.isArray(ids) || typeof isActive !== 'boolean') {
+    if (!Array.isArray(userIds) || userIds.length === 0) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid request body. Expected: { ids: number[], isActive: boolean }'
-        },
+        { success: false, error: 'userIds must be a non-empty array' },
         { status: 400 }
       );
     }
 
-    const result = await userController.bulkUpdateStatus(ids, isActive);
-    return NextResponse.json(result, { 
-      status: result.success ? 200 : 400 
-    });
+    if (typeof isActive !== 'boolean') {
+      return NextResponse.json(
+        { success: false, error: 'isActive must be a boolean value' },
+        { status: 400 }
+      );
+    }
 
+    const result = await userController.bulkUpdateStatus(userIds, isActive);
+
+    return NextResponse.json(result, {
+      status: result.success ? 200 : 400
+    });
   } catch (error) {
-    console.error('Bulk update user status error:', error);
+    console.error('Bulk update user status API error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to bulk update user status'
-      },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { userController } from '@/lib/controllers/UserController';
 
 /**
- * Authentication API Routes
+ * Authentication Login API
+ * POST /api/auth/login - User login with email/password
  */
 
-// POST /api/auth/login - User login
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { email, password } = body;
+    const { email, password } = await request.json();
+
     if (!email || !password) {
       return NextResponse.json(
         {
@@ -20,26 +20,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use the clean service-based login method
     const result = await userController.login(email, password);
-    
-    if (result.success && result.data) {
-      // Set token in HTTP-only cookie for security
-      const response = NextResponse.json(result, { 
-        status: 200 
-      });
-      
+
+    if (result.success && result.data?.token) {
+      // Set HTTP-only cookie for authentication
+      const response = NextResponse.json(result, { status: 200 });
       response.cookies.set('auth-token', result.data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 // 24 hours
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7 // 7 days
       });
-
       return response;
     }
 
     return NextResponse.json(result, { 
-      status: 401 
+      status: result.success ? 200 : 401 
     });
 
   } catch (error) {
@@ -47,7 +44,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Login failed'
+        error: 'Internal server error'
       },
       { status: 500 }
     );

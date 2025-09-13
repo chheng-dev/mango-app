@@ -1,9 +1,11 @@
 import { userController } from '@/lib/controllers/UserController';
-import { createApiRoutes } from '@/lib/api/BaseApiHandler';
+import { createApiHandler } from '@/lib/api/BaseApiHandler';
+import { AuthenticatedRequest, withAuth } from '@/lib/middleware/auth';
 
-const routes = createApiRoutes(userController);
+export const GET = withAuth(async (request: AuthenticatedRequest) => {
+  return createApiHandler(userController).GET(request);
+});
 
-export const GET = routes.GET;
-export const POST = routes.POST;
-export const PUT = routes.PUT;
-export const DELETE = routes.DELETE;
+export const POST = withAuth(async (request: AuthenticatedRequest) => {
+  return createApiHandler(userController).POST(request);
+});
