@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { userController } from '@/lib/controllers/UserController';
-import { AuthService } from '../services/authService';
+import { jwtService } from '../auth/jwt';
 
 /**
  * Authentication middleware utility
@@ -31,19 +30,19 @@ export async function authenticateRequest(request: NextRequest): Promise<{
       };
     }
 
-    const result = await AuthService.verifyToken(token);
-
-    if (!result.success) {
+    try {
+      const decoded = jwtService.verifyAccessToken(token);
+      
+      return {
+        success: true,
+        user: decoded
+      };
+    } catch (error) {
       return {
         success: false,
-        error: result.error || 'Authentication failed'
+        error: 'Invalid or expired token'
       };
     }
-
-    return {
-      success: true,
-      user: result.data
-    };
 
   } catch (error) {
     console.error('Authentication middleware error:', error);

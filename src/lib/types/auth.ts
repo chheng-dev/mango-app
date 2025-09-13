@@ -24,3 +24,16 @@ export interface LoginResponse {
   token: string;
   refreshToken: string;
 }
+
+export interface AuthContext {
+  user: {
+    id: number;
+    email: string;
+    code: string;
+    isVerified: boolean;
+    roles?: string[];
+    permissions?: string[];
+  };
+  token: string;
+  isAuthenticated: boolean;
+}

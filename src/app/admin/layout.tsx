@@ -1,12 +1,10 @@
 'use client';
 
-import { useAuth } from '@/store/authStore';
 import { ThemeProvider } from '@/contexts/theme-context';
 import { Sidebar } from '@/components/layout/sidebar';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
-import { LoadingScreen } from '@/components/layout/loading-screen';
-import { AccessDenied } from '@/components/layout/access-denied';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import HeaderSection from './layouts/header-section';
 
 interface AdminLayoutProps {
@@ -14,16 +12,6 @@ interface AdminLayoutProps {
 }
 
 function AdminLayoutContent({ children }: AdminLayoutProps) {
-  const { user, isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
-
-  if (!isAuthenticated) {
-    return <AccessDenied />;
-  }
-
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
       {/* Desktop Sidebar */}
@@ -61,7 +49,9 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <ThemeProvider>
-      <AdminLayoutContent>{children}</AdminLayoutContent>
+      <ProtectedRoute>
+        <AdminLayoutContent>{children}</AdminLayoutContent>
+      </ProtectedRoute>
     </ThemeProvider>
   );
 }

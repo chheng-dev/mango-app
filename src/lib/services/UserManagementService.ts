@@ -1,7 +1,6 @@
 import { ApiResponse } from '../controllers/BaseController';
 import { userService } from './UserService';
 import { rolePermissionService } from './RolePermissionService';
-import { SafeUser } from './AuthenticationService';
 
 export class UserManagementService {
   /**
@@ -17,7 +16,7 @@ export class UserManagementService {
     isVerified?: boolean;
     includeRoles?: boolean;
     roleId?: number;
-  }): Promise<ApiResponse<SafeUser[]>> {
+  }): Promise<ApiResponse<any[]>> {
     try {
       const page = params.page || 1;
       const limit = params.limit || 10;
@@ -170,7 +169,7 @@ export class UserManagementService {
     email?: string;
     phoneNumber?: string;
     dob?: Date;
-  }): Promise<ApiResponse<SafeUser>> {
+  }): Promise<ApiResponse<any>> {
     try {
       // Check if email is changing and if it's already taken
       if (profileData.email) {
@@ -197,7 +196,7 @@ export class UserManagementService {
     }
   }
 
-  private removeSensitiveFields(user: any): SafeUser {
+  private removeSensitiveFields(user: any): any {
     const { passwordHash, passwordConfirmation, ...safeData } = user;
     return safeData;
   }

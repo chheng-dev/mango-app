@@ -1,261 +1,384 @@
-import { db } from '../db';
-import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
+import { ValidationError, ModelResponse } from '../models/BaseModel';
 
-export interface PaginationOptions {
-  page: number;
-  limit: number;
+export interface ServiceResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+  validation?: ValidationError[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
-export interface SearchOptions {
-  query?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+export interface BusinessRuleResult {
+  valid: boolean;
+  message?: string;
 }
+export abstract class BaseService<TModel, TSelect, TInsert> {
+  protected model: TModel;
+  protected serviceName: string;
 
-export interface FilterOptions {
-  [key: string]: any;
-}
-
-export interface PaginationResult {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-export interface FindManyResult<T> {
-  data: T[];
-  pagination: PaginationResult;
-}
-
-export abstract class BaseService<TSelect, TInsert> {
-  protected abstract table: any; // Use any for Drizzle table
-  protected abstract searchableFields: any[]; // Array of actual column references
-
-  /**
-   * Find a single record by ID
-   */
-  async findById(id: number): Promise<TSelect | null> {
-    const result = await db
-      .select()
-      .from(this.table)
-      .where(eq(this.table.id, id))
-      .limit(1);
-
-    return (result[0] as TSelect) || null;
+  constructor(model: TModel, serviceName: string) {
+    this.model = model;
+    this.serviceName = serviceName;
   }
 
-  /**
-   * Create a new record
-   */
-  async create(data: TInsert): Promise<TSelect> {
-    const result = await db
-      .insert(this.table)
-      .values(data as any)
-      .returning();
-
-    return (result as any[])[0] as TSelect;
-  }
+  // ==================== VALIDATION METHODS ====================
 
   /**
-   * Update a record by ID
+   * Validate data before create/update operations
    */
-  async update(id: number, data: Partial<TSelect>): Promise<TSelect | null> {
-    const result = await db
-      .update(this.table)
-      .set({ ...data, updatedAt: new Date() } as any)
-      .where(eq(this.table.id, id))
-      .returning();
-
-    return (result[0] as TSelect) || null;
-  }
+  protected abstract validateData(data: Partial<TInsert>, isUpdate?: boolean): ValidationError[];
 
   /**
-   * Soft delete a record by setting isActive to false
+   * Validate business rules
    */
-  async softDelete(id: number): Promise<boolean> {
-    const result = await db
-      .update(this.table)
-      .set({ isActive: false, updatedAt: new Date() } as any)
-      .where(eq(this.table.id, id))
-      .returning();
-
-    return result.length > 0;
-  }
+  protected abstract validateBusinessRules(data: Partial<TInsert>, existingData?: TSelect): Promise<BusinessRuleResult>;
 
   /**
-   * Hard delete a record
+   * Common validation helper
    */
-  async delete(id: number): Promise<boolean> {
-    const result = await db
-      .delete(this.table)
-      .where(eq(this.table.id, id))
-      .returning();
+  protected validateRequired(data: any, requiredFields: string[]): ValidationError[] {
+    const errors: ValidationError[] = [];
 
-    return (result as any[]).length > 0;
-  }
-
-  /**
-   * Find multiple records with pagination, search, and filtering
-   */
-  async findMany(options: PaginationOptions & SearchOptions & {
-    filters?: FilterOptions;
-  }): Promise<FindManyResult<TSelect>> {
-    const { page, limit, query, sortOrder = 'desc', filters = {} } = options;
-    const offset = (page - 1) * limit;
-    const sortFunction = sortOrder === 'desc' ? desc : asc;
-
-    const conditions: any[] = [];
-
-    // Build search conditions
-    if (query && this.searchableFields.length > 0) {
-      const searchConditions = this.searchableFields.map(field => 
-        like(field, `%${query}%`)
-      );
-      conditions.push(or(...searchConditions));
-    }
-
-    // Build filter conditions
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && this.table[key]) {
-        conditions.push(eq(this.table[key], value));
+    requiredFields.forEach(field => {
+      if (!data[field] || (typeof data[field] === 'string' && data[field].trim() === '')) {
+        errors.push({
+          field,
+          message: `${field} is required`
+        });
       }
     });
 
-    // Build the base query
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    return errors;
+  }
 
-    // Get records
-    const dataQuery = db
-      .select()
-      .from(this.table)
-      .where(whereClause)
-      .orderBy(sortFunction(this.table.createdAt))
-      .limit(limit)
-      .offset(offset);
+  /**
+   * Validate email format
+   */
+  protected validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
 
-    // Get total count
-    const countQuery = db
-      .select({ count: sql<number>`count(*)` })
-      .from(this.table)
-      .where(whereClause);
+  // ==================== BUSINESS LOGIC METHODS ====================
 
-    const [data, totalResults] = await Promise.all([dataQuery, countQuery]);
-    const total = totalResults[0]?.count || 0;
-
-    return {
-      data: data as TSelect[],
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
+  /**
+   * Create with validation and business rules
+   */
+  async create(data: TInsert): Promise<ServiceResponse<TSelect>> {
+    try {
+      // Data validation
+      const validationErrors = this.validateData(data);
+      if (validationErrors.length > 0) {
+        return {
+          success: false,
+          error: 'Validation failed',
+          validation: validationErrors
+        };
       }
+
+      // Business rules validation
+      const businessRuleResult = await this.validateBusinessRules(data);
+      if (!businessRuleResult.valid) {
+        return {
+          success: false,
+          error: businessRuleResult.message || 'Business rule validation failed'
+        };
+      }
+
+      // Transform data before creation
+      const processedData = await this.beforeCreate(data);
+
+      // Create via model
+      const result = await (this.model as any).create(processedData);
+      
+      if (!result.success) {
+        return result;
+      }
+
+      // Post-creation processing
+      const finalData = await this.afterCreate(result.data);
+
+      return {
+        success: true,
+        data: finalData,
+        message: result.message
+      };
+
+    } catch (error) {
+      console.error(`${this.serviceName} create error:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Service operation failed'
+      };
+    }
+  }
+
+  /**
+   * Update with validation and business rules
+   */
+  async update(id: number, data: Partial<TInsert>): Promise<ServiceResponse<TSelect>> {
+    try {
+      // Check if record exists
+      const existingRecord = await (this.model as any).findById(id);
+      if (!existingRecord.success) {
+        return {
+          success: false,
+          error: 'Record not found'
+        };
+      }
+
+      // Data validation
+      const validationErrors = this.validateData(data, true);
+      if (validationErrors.length > 0) {
+        return {
+          success: false,
+          error: 'Validation failed',
+          validation: validationErrors
+        };
+      }
+
+      // Business rules validation
+      const businessRuleResult = await this.validateBusinessRules(data, existingRecord.data);
+      if (!businessRuleResult.valid) {
+        return {
+          success: false,
+          error: businessRuleResult.message || 'Business rule validation failed'
+        };
+      }
+
+      // Transform data before update
+      const processedData = await this.beforeUpdate(data, existingRecord.data);
+
+      // Update via model
+      const result = await (this.model as any).update(id, processedData);
+      
+      if (!result.success) {
+        return result;
+      }
+
+      // Post-update processing
+      const finalData = await this.afterUpdate(result.data, existingRecord.data);
+
+      return {
+        success: true,
+        data: finalData,
+        message: result.message
+      };
+
+    } catch (error) {
+      console.error(`${this.serviceName} update error:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Service operation failed'
+      };
+    }
+  }
+
+  /**
+   * Delete with business rules
+   */
+  async delete(id: number): Promise<ServiceResponse<boolean>> {
+    try {
+      // Check if record exists
+      const existingRecord = await (this.model as any).findById(id);
+      if (!existingRecord.success) {
+        return {
+          success: false,
+          error: 'Record not found'
+        };
+      }
+
+      // Check if deletion is allowed
+      const canDelete = await this.canDelete(existingRecord.data);
+      if (!canDelete.valid) {
+        return {
+          success: false,
+          error: canDelete.message || 'Deletion not allowed'
+        };
+      }
+
+      // Pre-deletion processing
+      await this.beforeDelete(existingRecord.data);
+
+      // Delete via model
+      const result = await (this.model as any).delete(id);
+      
+      if (!result.success) {
+        return result;
+      }
+
+      // Post-deletion processing
+      await this.afterDelete(existingRecord.data);
+
+      return {
+        success: true,
+        data: result.data,
+        message: result.message
+      };
+
+    } catch (error) {
+      console.error(`${this.serviceName} delete error:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Service operation failed'
+      };
+    }
+  }
+
+  /**
+   * Get with business logic
+   */
+  async getById(id: number): Promise<ServiceResponse<TSelect>> {
+    try {
+      const result = await (this.model as any).findById(id);
+      
+      if (!result.success) {
+        return result;
+      }
+
+      // Transform data after retrieval
+      const processedData = await this.afterGet(result.data);
+
+      return {
+        success: true,
+        data: processedData
+      };
+
+    } catch (error) {
+      console.error(`${this.serviceName} getById error:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Service operation failed'
+      };
+    }
+  }
+
+  /**
+   * Get all with business logic
+   */
+  async getAll(options: any = {}): Promise<ServiceResponse<TSelect[]>> {
+    try {
+      const result = await (this.model as any).findMany(options);
+      
+      if (!result.success) {
+        return result;
+      }
+
+      // Transform data after retrieval
+      const processedData = await Promise.all(
+        result.data.map((item: TSelect) => this.afterGet(item))
+      );
+
+      return {
+        success: true,
+        data: processedData,
+        pagination: result.pagination
+      };
+
+    } catch (error) {
+      console.error(`${this.serviceName} getAll error:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Service operation failed'
+      };
+    }
+  }
+
+  // ==================== LIFECYCLE HOOKS ====================
+
+  /**
+   * Process data before creation
+   */
+  protected async beforeCreate(data: TInsert): Promise<TInsert> {
+    return data;
+  }
+
+  /**
+   * Process data after creation
+   */
+  protected async afterCreate(data: TSelect): Promise<TSelect> {
+    return data;
+  }
+
+  /**
+   * Process data before update
+   */
+  protected async beforeUpdate(data: Partial<TInsert>, existingData: TSelect): Promise<Partial<TInsert>> {
+    return data;
+  }
+
+  /**
+   * Process data after update
+   */
+  protected async afterUpdate(newData: TSelect, oldData: TSelect): Promise<TSelect> {
+    return newData;
+  }
+
+  /**
+   * Process data before deletion
+   */
+  protected async beforeDelete(data: TSelect): Promise<void> {
+    // Override in subclasses
+  }
+
+  /**
+   * Process data after deletion
+   */
+  protected async afterDelete(data: TSelect): Promise<void> {
+    // Override in subclasses
+  }
+
+  /**
+   * Check if record can be deleted
+   */
+  protected async canDelete(data: TSelect): Promise<BusinessRuleResult> {
+    return { valid: true };
+  }
+
+  /**
+   * Process data after retrieval
+   */
+  protected async afterGet(data: TSelect): Promise<TSelect> {
+    return data;
+  }
+
+  // ==================== UTILITY METHODS ====================
+
+  /**
+   * Convert model response to service response
+   */
+  protected modelToServiceResponse<T>(modelResponse: ModelResponse<T>): ServiceResponse<T> {
+    return {
+      success: modelResponse.success,
+      data: modelResponse.data,
+      error: modelResponse.error,
+      message: modelResponse.message,
+      pagination: modelResponse.pagination
     };
   }
 
   /**
-   * Count records with optional filters
+   * Log service operations
    */
-  async count(filters: FilterOptions = {}): Promise<number> {
-    const conditions: any[] = [];
-
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && this.table[key]) {
-        conditions.push(eq(this.table[key], value));
-      }
-    });
-
-    const result = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(this.table)
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
-
-    return result[0]?.count || 0;
+  protected logOperation(operation: string, data?: any): void {
+    console.log(`[${this.serviceName}] ${operation}`, data ? { ...data } : '');
   }
 
   /**
-   * Check if a record exists
+   * Handle async operations safely
    */
-  async exists(id: number): Promise<boolean> {
-    const result = await db
-      .select({ id: this.table.id })
-      .from(this.table)
-      .where(eq(this.table.id, id))
-      .limit(1);
-
-    return result.length > 0;
-  }
-
-  /**
-   * Bulk update records
-   */
-  async bulkUpdate(ids: number[], data: Partial<TSelect>): Promise<void> {
-    await db
-      .update(this.table)
-      .set({ ...data, updatedAt: new Date() } as any)
-      .where(inArray(this.table.id, ids));
-  }
-
-  /**
-   * Bulk delete records (soft delete)
-   */
-  async bulkSoftDelete(ids: number[]): Promise<void> {
-    await db
-      .update(this.table)
-      .set({ isActive: false, updatedAt: new Date() } as any)
-      .where(inArray(this.table.id, ids));
-  }
-
-  /**
-   * Search records by query
-   */
-  async search(query: string, limit: number = 10, additionalFilters: FilterOptions = {}): Promise<TSelect[]> {
-    const conditions: any[] = [];
-
-    // Add search conditions
-    if (query && this.searchableFields.length > 0) {
-      const searchConditions = this.searchableFields.map(field => 
-        like(field, `%${query}%`)
-      );
-      conditions.push(or(...searchConditions));
+  protected async safeAsync<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      console.error(`${this.serviceName} async operation failed:`, error);
+      return fallback;
     }
-
-    // Add additional filters
-    Object.entries(additionalFilters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && this.table[key]) {
-        conditions.push(eq(this.table[key], value));
-      }
-    });
-
-    const result = await db
-      .select()
-      .from(this.table)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .limit(limit);
-
-    return result as TSelect[];
-  }
-
-  /**
-   * Get active records (where isActive = true)
-   */
-  async findActive(options: PaginationOptions & SearchOptions = { page: 1, limit: 10 }): Promise<FindManyResult<TSelect>> {
-    return this.findMany({
-      ...options,
-      filters: { isActive: true }
-    });
-  }
-
-  /**
-   * Get inactive records (where isActive = false)
-   */
-  async findInactive(options: PaginationOptions & SearchOptions = { page: 1, limit: 10 }): Promise<FindManyResult<TSelect>> {
-    return this.findMany({
-      ...options,
-      filters: { isActive: false }
-    });
   }
 }
-
-export default BaseService;

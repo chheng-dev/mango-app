@@ -1,25 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { userService, User, ApiResponse } from '@/lib/api/UserService';
-
-export interface UserFilters {
-  search?: string;
-  status?: 'active' | 'inactive';
-  isVerified?: boolean;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  page?: number;
-  limit?: number;
-}
-
-export interface CreateUserData {
-  name: string;
-  email: string;
-  code: string;
-  password: string;
-  passwordConfirmation: string;
-  phoneNumber?: string;
-  dob?: string;
-}
+import { userApiService } from '@/lib/api/userApiService';
+import type { User, CreateUserData, UserFilters, ApiResponse } from '@/lib/api/userApiService';
 
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
@@ -40,7 +21,7 @@ export function useUsers() {
       setError(null);
       
       const filterParams = { ...filters, ...newFilters };
-      const response = await userService.getUsers(filterParams);
+      const response = await userApiService.getUsers(filterParams);
       
       if (response.success && response.data) {
         setUsers(response.data);
@@ -66,10 +47,7 @@ export function useUsers() {
       setLoading(true);
       setError(null);
       
-      const response = await userService.createUser({
-        ...userData,
-        passwordHash: userData.password, // This would be hashed on the server
-      });
+      const response = await userApiService.createUser(userData);
       
       if (response.success && response.data) {
         setUsers(prev => [response.data!, ...prev]);
@@ -93,7 +71,7 @@ export function useUsers() {
       setLoading(true);
       setError(null);
       
-      const response = await userService.updateUser(id, updates);
+      const response = await userApiService.updateUser(id, updates);
       
       if (response.success && response.data) {
         setUsers(prev => prev.map(user => 
@@ -119,7 +97,7 @@ export function useUsers() {
       setLoading(true);
       setError(null);
       
-      const response = await userService.deleteUser(id);
+      const response = await userApiService.deleteUser(id);
       
       if (response.success) {
         setUsers(prev => prev.filter(user => user.id !== id));
@@ -143,7 +121,7 @@ export function useUsers() {
       setLoading(true);
       setError(null);
       
-      const response = await userService.updateUserStatus(id, isActive);
+      const response = await userApiService.updateUserStatus(id, isActive);
       
       if (response.success && response.data) {
         setUsers(prev => prev.map(user => 
@@ -181,7 +159,7 @@ export function useUsers() {
   // Initialize - fetch users on mount
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   return {
     users,

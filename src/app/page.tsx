@@ -1,11 +1,9 @@
 'use client';
 
-import { useUsers } from '@/hooks/useUsers';
 import { LogoutButton } from '@/components/LogoutButton';
 import Link from 'next/link';
 
 export default function Page() {
-  const { data, isLoading, error } = useUsers();
   
   return (
     <div className="p-8 space-y-6">
@@ -26,13 +24,6 @@ export default function Page() {
             Admin (Protected)
           </Link>
         </div>
-      </div>
-      
-      <div>
-        <h2 className="text-lg font-semibold">Users Data:</h2>
-        {isLoading && <div>Loading...</div>}
-        {error && <div>Error!</div>}
-        {data && <div>{JSON.stringify(data)}</div>}
       </div>
     </div>
   );

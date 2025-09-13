@@ -1,5 +1,4 @@
 "use client";
-import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +42,7 @@ export default function HeaderSection() {
     const breadcrumbs = [{ name: 'Home', href: '/admin', icon: Home }];
     
     let currentPath = '';
-    paths.forEach((path, index) => {
+    paths.forEach((path) => {
       if (path === 'admin') return;
       currentPath += `/${path}`;
       
