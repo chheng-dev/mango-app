@@ -1,6 +1,10 @@
 import { BaseService, ServiceResponse, BusinessRuleResult } from './BaseService';
 import { RoleModel, RoleSelect, RoleInsert, RoleWithPermissions } from '../models/RoleModel';
 import { ValidationError } from '../models/BaseModel';
+import { db } from '../db';
+import { userRoles } from '../db/schemas/user_roles';
+import { users } from '../db/schemas/users';
+import { eq, and, inArray } from 'drizzle-orm';
 
 export class RoleService extends BaseService<RoleModel, RoleSelect, RoleInsert> {
   
@@ -192,6 +196,74 @@ export class RoleService extends BaseService<RoleModel, RoleSelect, RoleInsert> 
       return {
         valid: false,
         message: 'Unable to verify if role can be deleted'
+      };
+    }
+  }
+
+  async assignUsersToRole(roleId: number, userIds: number[]): Promise<ServiceResponse<any>> {
+    try {
+      // Check if role exists
+      const roleExists = await this.model.exists(roleId);
+      if (!roleExists) {
+        return {
+          success: false,
+          error: 'Role not found'
+        };
+      }
+
+      if (userIds.length === 0) {
+        return {
+          success: false,
+          error: 'At least one user ID must be specified'
+        };
+      }
+
+      // Check if users exist
+      const existingUsers = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(inArray(users.id, userIds));
+
+      if (existingUsers.length !== userIds.length) {
+        return {
+          success: false,
+          error: 'One or more users not found'
+        };
+      }
+
+      // Remove existing assignments for these users to this role
+      await db
+        .delete(userRoles)
+        .where(
+          and(
+            eq(userRoles.roleId, roleId),
+            inArray(userRoles.userId, userIds)
+          )
+        );
+
+      // Create new assignments
+      const assignments = userIds.map(userId => ({
+        userId,
+        roleId,
+        assignedAt: new Date(),
+        isActive: true
+      }));
+
+      const result = await db.insert(userRoles).values(assignments).returning();
+
+      this.logOperation('assignUsersToRole', { roleId, userIds });
+
+      return {
+        success: true,
+        data: result,
+        message: `Successfully assigned ${userIds.length} users to role`
+      };
+
+    } catch (error) {
+      console.error('RoleService assignUsersToRole error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to assign users to role'
       };
     }
   }

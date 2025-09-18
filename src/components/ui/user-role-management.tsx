@@ -1,10 +1,9 @@
 'use client';
-
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, Column, DataTableAction } from '@/components/ui/data-table';
 import { RolePermissionModal } from '@/components/ui/role-permission-modal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,7 +32,6 @@ interface User {
   phoneNumber?: string;
   createdAt: string;
   roles?: Role[];
-  permissions?: Permission[];
 }
 
 interface Role {
@@ -195,7 +193,7 @@ export function UserRoleManagement({ users, onRefresh, loading = false }: UserRo
             <div className="text-xs font-medium text-muted-foreground mb-1">Permissions</div>
             <Badge variant="outline" className="text-xs">
               <ShieldCheck className="w-3 h-3 mr-1" />
-              {user.permissions?.length || 0} permissions
+              {user.roles?.reduce((total, role) => total + (role.permissions?.length || 0), 0) || 0} permissions
             </Badge>
           </div>
         </div>

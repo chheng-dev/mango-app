@@ -3,7 +3,6 @@
 import { useAuth } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect, ReactNode } from 'react';
-import { LoadingScreen } from '@/components/layout/loading-screen';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -11,29 +10,32 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isInitialized } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isInitialized && !isAuthenticated && !isLoading) {
       const currentPath = window.location.pathname;
       const redirectUrl = `${redirectTo}?redirect=${encodeURIComponent(currentPath)}`;
       router.push(redirectUrl);
     }
-  }, [isAuthenticated, isLoading, router, redirectTo]);
+  }, [isAuthenticated, isLoading, isInitialized, router, redirectTo]);
 
   if (isLoading) {
-    return <LoadingScreen />;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
-    return null; // Will redirect to login
+    return null;
   }
 
   return <>{children}</>;
 }
 
-// HOC version for easier usage
 export function withProtectedRoute<P extends object>(
   Component: React.ComponentType<P>,
   redirectTo?: string

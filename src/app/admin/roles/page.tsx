@@ -9,11 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, Column, DataTableAction } from '@/components/ui/data-table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Shield, 
   ShieldCheck, 
@@ -24,11 +19,9 @@ import {
   Eye,
   Search,
   RefreshCw,
-  Save,
-  X,
   UserPlus
 } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from '@/lib/utils/toast';
 
 interface Role {
   id: number;
@@ -51,33 +44,12 @@ interface Permission {
   description?: string;
 }
 
-interface RoleFormData {
-  name: string;
-  slug: string;
-  description: string;
-  isActive: boolean;
-  permissions: number[];
-}
-
 export default function RolesManagementPage() {
   const router = useRouter();
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [formData, setFormData] = useState<RoleFormData>({
-    name: '',
-    slug: '',
-    description: '',
-    isActive: true,
-    permissions: []
-  });
-  const [formErrors, setFormErrors] = useState<Partial<RoleFormData>>({});
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -85,7 +57,6 @@ export default function RolesManagementPage() {
 
   const loadData = async () => {
     setLoading(true);
-    setError(null);
     try {
       const [rolesResponse, permissionsResponse] = await Promise.all([
         fetch('/api/rbac/roles'),
@@ -95,14 +66,18 @@ export default function RolesManagementPage() {
       if (rolesResponse.ok) {
         const rolesData = await rolesResponse.json();
         setRoles(rolesData.data || []);
+      } else {
+        toast.error('Failed to load roles');
       }
 
       if (permissionsResponse.ok) {
         const permissionsData = await permissionsResponse.json();
         setPermissions(permissionsData.data || []);
+      } else {
+        toast.error('Failed to load permissions');
       }
     } catch (error) {
-      setError('Failed to load data');
+      toast.error('Failed to load data');
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
@@ -124,44 +99,15 @@ export default function RolesManagementPage() {
   }, {} as Record<string, Permission[]>);
 
   const handleCreate = () => {
-    setModalMode('create');
-    setSelectedRole(null);
-    setFormData({
-      name: '',
-      slug: '',
-      description: '',
-      isActive: true,
-      permissions: []
-    });
-    setFormErrors({});
-    setModalOpen(true);
+    router.push('/admin/roles/create');
   };
 
   const handleEdit = (role: Role) => {
-    setModalMode('edit');
-    setSelectedRole(role);
-    setFormData({
-      name: role.name,
-      slug: role.slug,
-      description: role.description || '',
-      isActive: role.isActive,
-      permissions: role.permissions?.map(p => p.id) || []
-    });
-    setFormErrors({});
-    setModalOpen(true);
+    router.push(`/admin/roles/edit?id=${role.id}`);
   };
 
   const handleView = (role: Role) => {
-    setModalMode('view');
-    setSelectedRole(role);
-    setFormData({
-      name: role.name,
-      slug: role.slug,
-      description: role.description || '',
-      isActive: role.isActive,
-      permissions: role.permissions?.map(p => p.id) || []
-    });
-    setModalOpen(true);
+    router.push(`/admin/roles/edit?id=${role.id}`);
   };
 
   const handleDelete = async (role: Role) => {
@@ -175,88 +121,15 @@ export default function RolesManagementPage() {
       });
 
       if (response.ok) {
+        toast.success('Role deleted successfully');
         await loadData();
       } else {
-        setError('Failed to delete role');
+        toast.error('Failed to delete role');
       }
     } catch (error) {
-      setError('Failed to delete role');
+      toast.error('Failed to delete role');
       console.error('Error deleting role:', error);
     }
-  };
-
-  const validateForm = (): boolean => {
-    const errors: Partial<RoleFormData> = {};
-
-    if (!formData.name.trim()) {
-      errors.name = 'Role name is required';
-    }
-
-    if (!formData.slug.trim()) {
-      errors.slug = 'Role slug is required';
-    } else if (!/^[a-z0-9-]+$/.test(formData.slug)) {
-      errors.slug = 'Slug must contain only lowercase letters, numbers, and hyphens';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSave = async () => {
-    if (!validateForm()) return;
-
-    setSaving(true);
-    try {
-      const url = modalMode === 'create' 
-        ? '/api/rbac/roles' 
-        : `/api/rbac/roles/${selectedRole?.id}`;
-      
-      const method = modalMode === 'create' ? 'POST' : 'PUT';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        setModalOpen(false);
-        await loadData();
-      } else {
-        setError(`Failed to ${modalMode} role`);
-      }
-    } catch (error) {
-      setError(`Failed to ${modalMode} role`);
-      console.error(`Error ${modalMode} role:`, error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleInputChange = (field: keyof RoleFormData, value: string | boolean | number[]) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: undefined }));
-    }
-
-    // Auto-generate slug from name
-    if (field === 'name' && typeof value === 'string') {
-      const slug = value.toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim();
-      setFormData(prev => ({ ...prev, slug }));
-    }
-  };
-
-  const handlePermissionToggle = (permissionId: number) => {
-    setFormData(prev => ({
-      ...prev,
-      permissions: prev.permissions.includes(permissionId)
-        ? prev.permissions.filter(id => id !== permissionId)
-        : [...prev.permissions, permissionId]
-    }));
   };
 
   // Define columns for the data table
@@ -395,12 +268,7 @@ export default function RolesManagementPage() {
           </div>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        {/* Error handling is now done via toast notifications */}
 
         {/* Search */}
         <Card>
@@ -488,148 +356,6 @@ export default function RolesManagementPage() {
           addButtonText="Create Role"
         />
 
-        {/* Role Modal */}
-        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                {modalMode === 'create' ? 'Create New Role' : 
-                 modalMode === 'edit' ? 'Edit Role' : 'Role Details'}
-              </DialogTitle>
-              <DialogDescription>
-                {modalMode === 'create' ? 'Create a new role and assign permissions' :
-                 modalMode === 'edit' ? 'Update role information and permissions' :
-                 'View role details and permissions'}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-6">
-              {/* Basic Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Role Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    disabled={modalMode === 'view'}
-                    className={formErrors.name ? 'border-red-500' : ''}
-                    placeholder="Enter role name"
-                  />
-                  {formErrors.name && (
-                    <p className="text-sm text-red-500">{formErrors.name}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="slug">Role Slug *</Label>
-                  <Input
-                    id="slug"
-                    value={formData.slug}
-                    onChange={(e) => handleInputChange('slug', e.target.value)}
-                    disabled={modalMode === 'view'}
-                    className={formErrors.slug ? 'border-red-500' : ''}
-                    placeholder="role-slug"
-                  />
-                  {formErrors.slug && (
-                    <p className="text-sm text-red-500">{formErrors.slug}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  disabled={modalMode === 'view'}
-                  placeholder="Enter role description"
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="isActive"
-                  checked={formData.isActive}
-                  onCheckedChange={(checked) => handleInputChange('isActive', checked)}
-                  disabled={modalMode === 'view'}
-                />
-                <Label htmlFor="isActive">Active Role</Label>
-              </div>
-
-              {/* Permissions */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Permissions</h3>
-                  <Badge variant="outline">
-                    {formData.permissions.length} selected
-                  </Badge>
-                </div>
-                
-                <ScrollArea className="h-[300px] border rounded-lg p-4">
-                  <div className="space-y-4">
-                    {Object.entries(groupedPermissions).map(([resource, perms]) => (
-                      <div key={resource}>
-                        <h4 className="font-medium capitalize mb-2 flex items-center gap-2">
-                          <Shield className="h-4 w-4" />
-                          {resource} Permissions
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-6">
-                          {perms.map((permission) => (
-                            <div
-                              key={permission.id}
-                              className="flex items-center space-x-2"
-                            >
-                              <Checkbox
-                                id={`perm-${permission.id}`}
-                                checked={formData.permissions.includes(permission.id)}
-                                onCheckedChange={() => handlePermissionToggle(permission.id)}
-                                disabled={modalMode === 'view'}
-                              />
-                              <Label 
-                                htmlFor={`perm-${permission.id}`}
-                                className="text-sm cursor-pointer"
-                              >
-                                {permission.name}
-                              </Label>
-                              <Badge variant="outline" className="text-xs">
-                                {permission.action}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setModalOpen(false)}>
-                {modalMode === 'view' ? 'Close' : 'Cancel'}
-              </Button>
-              {modalMode !== 'view' && (
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Saving...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Save className="h-4 w-4" />
-                      {modalMode === 'create' ? 'Create Role' : 'Update Role'}
-                    </div>
-                  )}
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </ProtectedRoute>
   );

@@ -91,16 +91,6 @@ export function Sidebar({ className }: SidebarProps) {
         </div>
       </div>
 
-      {/* Debug Info (remove in production) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 border-b text-xs">
-          <div>Loading: {isLoading ? 'Yes' : 'No'}</div>
-          <div>Error: {isError ? 'Yes' : 'No'}</div>
-          <div>Super Admin: {isSuperAdmin ? 'Yes' : 'No'}</div>
-          <div>Permissions: {permissions.length}</div>
-        </div>
-      )}
-
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto">
         {/* Overview Section */}

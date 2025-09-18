@@ -23,12 +23,36 @@ export interface UserWithRoles extends UserSelect {
       action: string;
     }>;
   }>;
-  permissions: Array<{
+}
+
+/**
+ * Helper function to get flattened permissions from user roles
+ */
+export function getFlattenedPermissions(userWithRoles: UserWithRoles): Array<{
+  id: number;
+  name: string;
+  resource: string;
+  action: string;
+}> {
+  const permissionsSet = new Set<string>();
+  const permissions: Array<{
     id: number;
     name: string;
     resource: string;
     action: string;
-  }>;
+  }> = [];
+
+  userWithRoles.roles.forEach(role => {
+    role.permissions.forEach(permission => {
+      const permissionKey = `${permission.id}-${permission.name}`;
+      if (!permissionsSet.has(permissionKey)) {
+        permissionsSet.add(permissionKey);
+        permissions.push(permission);
+      }
+    });
+  });
+
+  return permissions;
 }
 
 export class UserModel extends BaseModel<UserSelect, UserInsert> {
@@ -189,7 +213,6 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
 
       // Group roles and permissions
       const rolesMap = new Map();
-      const permissionsSet = new Set();
 
       userRolesData.forEach(row => {
         // Add role if not exists
@@ -203,7 +226,7 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
           });
         }
 
-        // Add permission to role and global permissions
+        // Add permission to role
         if (row.permissionId) {
           const permission = {
             id: row.permissionId,
@@ -213,14 +236,12 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
           };
 
           rolesMap.get(row.roleId).permissions.push(permission);
-          permissionsSet.add(JSON.stringify(permission));
         }
       });
 
       const result: UserWithRoles = {
         ...userResult.data!,
-        roles: Array.from(rolesMap.values()),
-        permissions: Array.from(permissionsSet).map(p => JSON.parse(p as string))
+        roles: Array.from(rolesMap.values())
       };
 
       return {
@@ -286,8 +307,7 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
       userRolesData.forEach(row => {
         if (!userRolesMap.has(row.userId)) {
           userRolesMap.set(row.userId, {
-            roles: new Map(),
-            permissions: new Set()
+            roles: new Map()
           });
         }
 
@@ -314,15 +334,13 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
           };
 
           userData.roles.get(row.roleId).permissions.push(permission);
-          userData.permissions.add(JSON.stringify(permission));
         }
       });
 
       // Merge with user data
       const result = usersResult.data!.map(user => ({
         ...user,
-        roles: Array.from(userRolesMap.get(user.id)?.roles.values() || []),
-        permissions: Array.from(userRolesMap.get(user.id)?.permissions || []).map(p => JSON.parse(p as string))
+        roles: Array.from(userRolesMap.get(user.id)?.roles.values() || [])
       }));
 
       return {

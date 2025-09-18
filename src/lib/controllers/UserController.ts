@@ -566,7 +566,6 @@ export class UserController {
       }
 
       try {
-        // Try to get user with roles using getUserWithRoles
         const userWithRolesResult = await userService.getUserWithRoles(userId);
         
         if (userWithRolesResult.success && userWithRolesResult.data) {
@@ -577,7 +576,6 @@ export class UserController {
           };
         }
 
-        // If roles failed, return user without roles
         return {
           success: true,
           data: result.data!,
@@ -604,9 +602,10 @@ export class UserController {
       const userResult = await userService.getUserWithRoles(userId);
       if (!userResult.success || !userResult.data) return false;
 
-      const userPermissions = userResult.data.permissions || [];
-      
-      return userPermissions.some((permission: any) => permission.slug === permissionSlug);
+      // Get flattened permissions from roles
+      return userResult.data.roles.some(role =>
+        role.permissions.some(permission => permission.name === permissionSlug)
+      );
     } catch (error) {
       console.error('Check permission error:', error);
       return false;
