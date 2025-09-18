@@ -7,9 +7,10 @@ import { DataTable, Column, DataTableAction } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserCheck, UserX, Eye, Edit, Trash2, Mail, Plus, RefreshCw } from 'lucide-react';
+import { UserCheck, UserX, Eye, Edit, Trash2, Mail, Plus, RefreshCw, Shield } from 'lucide-react';
 import { useUsers } from '@/hooks/useUsers';
 import { User } from '@/lib/api/UserService';
+import { RolePermissionModal } from '@/components/ui/role-permission-modal';
 
 export default function UsersPage() {
   const router = useRouter();
@@ -24,6 +25,8 @@ export default function UsersPage() {
   } = useUsers();
 
   const [deleteLoading, setDeleteLoading] = useState<number | null>(null);
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const [selectedUserForRoles, setSelectedUserForRoles] = useState<User | null>(null);
 
   // Clear error on component mount
   useEffect(() => {
@@ -67,6 +70,39 @@ export default function UsersPage() {
       console.error('Error updating user status:', error);
     }
   }, [updateUserStatus]);
+
+  // Handle role assignment modal
+  const handleManageRoles = useCallback((user: User) => {
+    setSelectedUserForRoles(user);
+    setRoleModalOpen(true);
+  }, []);
+
+  const handleRoleAssignmentSave = useCallback(async (data: any) => {
+    try {
+      const response = await fetch(`/api/users/${data.userId}/assign-roles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          roles: data.roles,
+          permissions: data.permissions
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh users data
+        await fetchUsers();
+        return true;
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to assign roles');
+      }
+    } catch (error) {
+      console.error('Error assigning roles:', error);
+      throw error;
+    }
+  }, [fetchUsers]);
 
   // Memoized columns for performance
   const columns: Column<User>[] = useMemo(() => [
@@ -163,6 +199,20 @@ export default function UsersPage() {
   // Memoized row actions for performance
   const rowActions: DataTableAction<User>[] = useMemo(() => [
     {
+      label: 'Manage Roles (Quick)',
+      icon: Shield,
+      onClick: handleManageRoles,
+      variant: 'default'
+    },
+    {
+      label: 'Manage Roles (Full)',
+      icon: Shield,
+      onClick: (user) => {
+        router.push(`/admin/users/roles/manage?userId=${user.id}`);
+      },
+      variant: 'default'
+    },
+    {
       label: 'Edit User',
       icon: Edit,
       onClick: handleEditUser
@@ -188,7 +238,7 @@ export default function UsersPage() {
       onClick: handleDeleteUser,
       loading: (user: User) => deleteLoading === user.id
     }
-  ], [handleEditUser, handleStatusToggle, handleDeleteUser, deleteLoading]);
+  ], [handleEditUser, handleStatusToggle, handleDeleteUser, handleManageRoles, deleteLoading, router]);
 
   const handleAddUser = useCallback(() => {
     handleCreateUser();

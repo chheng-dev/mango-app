@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ interface UserFormData {
   name: string;
   email: string;
   code: string;
-  password: string;exit
+  password: string;
   passwordConfirmation: string;
   phoneNumber: string;
   dob: string;
@@ -26,7 +26,7 @@ interface UserFormData {
   isVerified: boolean;
 }
 
-export default function EditUserPage() {
+function EditUserContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get('id');
@@ -187,20 +187,17 @@ export default function EditUserPage() {
 
   if (!user) {
     return (
-      <ProtectedRoute>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading user...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading user...</p>
         </div>
-      </ProtectedRoute>
+      </div>
     );
   }
 
   return (
-    <ProtectedRoute>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button
@@ -532,6 +529,22 @@ export default function EditUserPage() {
           </div>
         </form>
       </div>
+  );
+}
+
+export default function EditUserPage() {
+  return (
+    <ProtectedRoute>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      }>
+        <EditUserContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }

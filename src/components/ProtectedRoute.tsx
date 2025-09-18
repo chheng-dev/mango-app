@@ -3,6 +3,7 @@
 import { useAuth } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect, ReactNode } from 'react';
+import { LoadingScreen } from '@/components/layout/loading-screen';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -22,11 +23,7 @@ export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRou
   }, [isAuthenticated, isLoading, router, redirectTo]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!isAuthenticated) {

@@ -3,6 +3,7 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { RBACDashboardWidget } from '@/components/ui/rbac-dashboard-widget';
 import { Users, Database, Activity, TrendingUp } from 'lucide-react';
 
 const stats = [
@@ -136,6 +137,9 @@ export default function AdminPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* RBAC Management Widget */}
+        <RBACDashboardWidget />
       </div>
     </ProtectedRoute>
   );

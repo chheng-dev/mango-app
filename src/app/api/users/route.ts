@@ -1,11 +1,30 @@
 import { userController } from '@/lib/controllers/UserController';
-import { createApiHandler } from '@/lib/api/BaseApiHandler';
-import { AuthenticatedRequest, withAuth } from '@/lib/middleware/auth';
+import { NextRequest } from "next/server";
+import { BaseRoute, withErrorHandling } from "@/lib/utils/BaseRoute";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
-export const GET = withAuth(async (request: AuthenticatedRequest) => {
-  return createApiHandler(userController).GET(request);
-});
+export const GET = withErrorHandling(async (request: NextRequest) => {
+  return BaseRoute.handleAuthenticatedGetCollection(
+    request,
+    (params, auth) => userController.getAll(params),
+    'Users',
+    {
+      requireAuth: true,
+      requiredPermissions: [PERMISSIONS.USER_READ],
+      allowSelf: false
+    }
+  );
+}, 'GET Users');
 
-export const POST = withAuth(async (request: AuthenticatedRequest) => {
-  return createApiHandler(userController).POST(request);
-});
+export const POST = withErrorHandling(async (request: NextRequest) => {
+  return BaseRoute.handleAuthenticatedCreate(
+    request,
+    (data, auth) => userController.create(data),
+    'User',
+    {
+      requireAuth: true,
+      requiredPermissions: [PERMISSIONS.USER_CREATE],
+      allowSelf: false
+    }
+  );
+}, 'POST User');

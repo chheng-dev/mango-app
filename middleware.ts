@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { JWTService } from "@/lib/auth/jwt";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -63,20 +64,34 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value || 
                 request.headers.get('authorization')?.replace('Bearer ', '');
 
+  // Function to validate token
+  const isValidToken = (token: string): boolean => {
+    try {
+      const jwtService = JWTService.getInstance();
+      jwtService.verifyAccessToken(token);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  // Check if user is authenticated (has valid token)
+  const isAuthenticated = token ? isValidToken(token) : false;
+
   // Redirect authenticated users away from auth pages (login, register)
-  if (isAuthRoute && token) {
+  if (isAuthRoute && isAuthenticated) {
     return NextResponse.redirect(new URL('/admin', request.url));
   }
 
-  // Handle protected pages (redirect to login)
-  if (isProtectedPage && !token) {
+  // Handle protected pages (redirect to login if not authenticated)
+  if (isProtectedPage && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Handle protected API routes (return 401)
-  if (isProtectedApi && !token) {
+  // Handle protected API routes (return 401 if not authenticated)
+  if (isProtectedApi && !isAuthenticated) {
     return NextResponse.json(
       { success: false, error: 'Authentication required' },
       { status: 401 }

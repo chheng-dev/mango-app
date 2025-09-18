@@ -24,29 +24,40 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // API functions
 const loginApi = async (credentials: { email: string; password: string }) => {
+  console.log('🔐 Calling login API with:', { email: credentials.email });
   const response = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // Important: include cookies
     body: JSON.stringify(credentials),
   });
 
   if (!response.ok) {
+    console.error('❌ Login API failed:', response.status, response.statusText);
     throw new Error('Login failed');
   }
 
-  return response.json();
+  const result = await response.json();
+  console.log('📊 Login API response:', result);
+  return result;
 };
 
 const getMeApi = async () => {
+  console.log('👤 Calling /api/auth/me...');
   const response = await fetch('/api/auth/me', {
     credentials: 'include',
   });
 
+  console.log('📊 /api/auth/me response status:', response.status);
+  
   if (!response.ok) {
+    console.error('❌ /api/auth/me failed:', response.status, response.statusText);
     throw new Error('Failed to get user');
   }
 
-  return response.json();
+  const result = await response.json();
+  console.log('📊 /api/auth/me response data:', result);
+  return result;
 };
 
 const logoutApi = async () => {
@@ -75,16 +86,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: loginApi,
     onSuccess: (data) => {
+      console.log('🚪 Login API response:', data);
       if (data.success) {
-        const { user, token } = data.data;
+        const { user } = data.data;
+        console.log('✅ Setting user data from login:', user);
         
-        // Set cookie
-        document.cookie = `auth-token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=strict`;
+        // The login response should have the full user object with 'id'
+        // But just in case, let's ensure the mapping is correct
+        const mappedUser: User = {
+          id: user.id || user.userId, // Handle both field names
+          email: user.email,
+          name: user.name || user.email, // Fallback if name not available
+          code: user.code,
+          isVerified: user.isVerified
+        };
         
-        setUser(user);
+        console.log('🔄 Mapped user data from login:', mappedUser);
+        
+        // Don't set client-side cookie - rely on HTTP-only cookie from server
+        // The server already set the auth-token cookie in the login response
+        
+        setUser(mappedUser);
         setIsAuthenticated(true);
         
-        // Invalidate auth queries
+        // Invalidate auth queries to trigger /api/auth/me call
         queryClient.invalidateQueries({ queryKey: ['auth'] });
       }
     },
@@ -99,8 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useMutation({
     mutationFn: logoutApi,
     onSuccess: () => {
-      // Clear cookie
-      document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      // Don't manually clear cookie - server should handle this
+      // The logout API should clear the HTTP-only cookie
       
       setUser(null);
       setIsAuthenticated(false);
@@ -112,16 +137,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Update auth state when user data changes
   useEffect(() => {
+    console.log('📊 Auth state update:', { userData, error, isCheckingAuth });
+    
     if (userData?.success) {
-      setUser(userData.data);
+      console.log('✅ Setting user from /api/auth/me:', userData.data);
+      
+      // Map JWT payload fields to User interface
+      // JWT has 'userId' but User interface expects 'id'
+      const userFromJWT = userData.data;
+      const mappedUser: User = {
+        id: userFromJWT.userId || userFromJWT.id, // Handle both field names
+        email: userFromJWT.email,
+        name: userFromJWT.name || userFromJWT.email, // Fallback if name not in JWT
+        code: userFromJWT.code,
+        isVerified: userFromJWT.isVerified
+      };
+      
+      console.log('🔄 Mapped user data:', mappedUser);
+      setUser(mappedUser);
       setIsAuthenticated(true);
     } else if (error || (userData && !userData.success)) {
+      console.log('❌ Clearing auth state:', { error, userData });
       // Clear auth state if there's an error or unsuccessful response
       setUser(null);
       setIsAuthenticated(false);
       
-      // Clear cookie if auth failed
-      document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      // Don't manually clear cookie - let server handle HTTP-only cookies
     }
   }, [userData, error]);
 
