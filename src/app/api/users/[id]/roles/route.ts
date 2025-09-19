@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { userController } from '@/lib/controllers/UserController';
 import { roleController } from '@/lib/controllers/RoleController';
-
-/**
- * User Roles API Routes
- * GET /api/users/[id]/roles - Get user roles
- * POST /api/users/[id]/roles - Assign role to user
- * PUT /api/users/[id]/roles - Update user roles and permissions
- * DELETE /api/users/[id]/roles - Remove role from user
- */
 
 export async function GET(
   request: NextRequest,
@@ -23,7 +16,7 @@ export async function GET(
       }, { status: 400 });
     }
 
-    const result = await roleController.getUserRoles(userId);
+    const result = await userController.getUserWithRoles(userId);
     return NextResponse.json(result);
   } catch (error) {
     console.error('GET user roles error:', error);
@@ -51,10 +44,10 @@ export async function POST(
     const body = await request.json();
     
     // Handle both single role assignment and bulk role assignment
-    if (body.roleId && body.assignedBy) {
+    if (body.roleId) {
       // Single role assignment (legacy format)
-      const { roleId, assignedBy } = body;
-      const result = await roleController.assignRole(userId, roleId, assignedBy);
+      const { roleId } = body;
+      const result = await roleController.assignUsersToRole(roleId, [userId]);
       return NextResponse.json(result);
     } else if (body.roleIds && Array.isArray(body.roleIds)) {
       // Bulk role assignment (new format)
@@ -63,7 +56,7 @@ export async function POST(
       let skipped = 0;
       
       for (const roleId of roleIds) {
-        const result = await roleController.assignRole(userId, roleId, 1); // TODO: Get assignedBy from session
+        const result = await roleController.assignUsersToRole(roleId, [userId]);
         if (result.success) {
           assigned++;
         } else {
@@ -115,12 +108,11 @@ export async function PUT(
     }
 
     // Update user roles and permissions in bulk
-    const result = await roleController.updateUserRoles(userId, {
-      roles: roles || [],
-      permissions: permissions || []
-    });
-    
-    return NextResponse.json(result);
+    // For now, return not implemented - this would require complex logic
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Bulk update not implemented yet' 
+    }, { status: 501 });
   } catch (error) {
     console.error('PUT update user roles error:', error);
     return NextResponse.json({ 
@@ -150,7 +142,7 @@ export async function DELETE(
     
     if (roleIdParam) {
       // Single role removal via query parameter
-      const result = await roleController.removeRole(userId, parseInt(roleIdParam));
+      const result = await roleController.removeUsersFromRole(parseInt(roleIdParam), [userId]);
       return NextResponse.json(result);
     } else {
       // Bulk role removal via request body
@@ -166,7 +158,7 @@ export async function DELETE(
 
       let removed = 0;
       for (const roleId of roleIds) {
-        const result = await roleController.removeRole(userId, roleId);
+        const result = await roleController.removeUsersFromRole(roleId, [userId]);
         if (result.success) {
           removed++;
         }

@@ -10,7 +10,7 @@ export const GET = withErrorHandling(async (
   return BaseRoute.handleAuthenticatedGetById(
     request,
     params,
-    (id, auth) => roleController.getById(id),
+    (id, auth) => roleController.getRoleWithPermissions(id),
     'Role',
     {
       requireAuth: true,

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { BaseRoute, withErrorHandling } from '@/lib/utils/BaseRoute';
 
 /**
  * Logout API - Clear authentication token
  */
 
 // POST /api/auth/logout - User logout
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandling(async (request: NextRequest) => {
   try {
     const response = NextResponse.json(
       {
@@ -27,12 +28,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Logout error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Logout failed'
-      },
-      { status: 500 }
-    );
+    return BaseRoute.errorResponse('Logout failed', 500);
   }
-}
+}, 'POST Logout');

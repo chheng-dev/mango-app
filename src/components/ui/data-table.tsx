@@ -22,6 +22,7 @@ import {
 } from './table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   MoreHorizontal, 
   Search, 
@@ -31,7 +32,10 @@ import {
   Edit,
   Trash2,
   Star,
-  Settings2
+  Settings2,
+  Database,
+  FileX,
+  Inbox
 } from 'lucide-react';
 
 export interface Column<T> {
@@ -65,6 +69,11 @@ interface DataTableProps<T> {
   }[];
   onAdd?: () => void;
   addButtonText?: string;
+  isLoading?: boolean;
+  skeletonRows?: number;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  emptyIcon?: React.ComponentType<{ className?: string }>;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -78,7 +87,12 @@ export function DataTable<T extends Record<string, any>>({
   rowActions = [],
   filters = [],
   onAdd,
-  addButtonText = "Add Item"
+  addButtonText = "Add Item",
+  isLoading = false,
+  skeletonRows = 5,
+  emptyTitle = "No data available",
+  emptyDescription = "There are no items to display at the moment.",
+  emptyIcon: EmptyIcon = Database
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({});
@@ -158,6 +172,7 @@ export function DataTable<T extends Record<string, any>>({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
+                disabled={isLoading}
               />
             </div>
           )}
@@ -165,7 +180,7 @@ export function DataTable<T extends Record<string, any>>({
           {/* Status Filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2" disabled={isLoading}>
                 <Filter className="h-4 w-4" />
                 Status
                 <ChevronDown className="h-4 w-4" />
@@ -189,7 +204,7 @@ export function DataTable<T extends Record<string, any>>({
           {/* Category Filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2" disabled={isLoading}>
                 Category
                 <ChevronDown className="h-4 w-4" />
               </Button>
@@ -212,7 +227,7 @@ export function DataTable<T extends Record<string, any>>({
           {/* Price Range Filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2" disabled={isLoading}>
                 Price: $100-$200
                 <ChevronDown className="h-4 w-4" />
               </Button>
@@ -230,7 +245,7 @@ export function DataTable<T extends Record<string, any>>({
           {/* Columns Toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2" disabled={isLoading}>
                 <Settings2 className="h-4 w-4" />
                 Columns
                 <ChevronDown className="h-4 w-4" />
@@ -276,44 +291,89 @@ export function DataTable<T extends Record<string, any>>({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedData.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell>
-                    <input type="checkbox" className="rounded" />
-                  </TableCell>
-                  {columns.map((column) => (
-                    <TableCell key={String(column.key)}>
-                      {column.key === 'actions' ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {rowActions.map((action, actionIndex) => (
-                              <DropdownMenuItem
-                                key={actionIndex}
-                                onClick={() => action.onClick(item)}
-                                className={action.variant === 'destructive' ? 'text-destructive' : ''}
-                              >
-                                {action.icon && <action.icon className="mr-2 h-4 w-4" />}
-                                {action.label}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : column.render ? (
-                        column.render(item[column.key], item)
-                      ) : (
-                        String(item[column.key] || '')
-                      )}
+              {isLoading ? (
+                // Loading skeleton rows
+                Array.from({ length: skeletonRows }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    <TableCell>
+                      <Skeleton className="h-4 w-4 rounded" />
                     </TableCell>
-                  ))}
+                    {columns.map((column) => (
+                      <TableCell key={`skeleton-${index}-${String(column.key)}`}>
+                        {column.key === 'actions' ? (
+                          <Skeleton className="h-8 w-8 rounded" />
+                        ) : (
+                          <Skeleton className="h-4 w-full max-w-[200px]" />
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : sortedData.length === 0 ? (
+                // Empty state
+                <TableRow>
+                  <TableCell colSpan={columns.length + 1} className="py-16">
+                    <div className="flex flex-col items-center justify-center text-center space-y-4">
+                      <div className="rounded-full bg-muted p-6">
+                        <EmptyIcon className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-medium text-foreground">
+                          {emptyTitle}
+                        </h3>
+                        <p className="text-sm text-muted-foreground max-w-md">
+                          {emptyDescription}
+                        </p>
+                      </div>
+                      {onAdd && (
+                        <Button onClick={onAdd} className="mt-4">
+                          {addButtonText}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                // Actual data rows
+                sortedData.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell>
+                      <input type="checkbox" className="rounded" />
+                    </TableCell>
+                    {columns.map((column) => (
+                      <TableCell key={String(column.key)}>
+                        {column.key === 'actions' ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {rowActions.map((action, actionIndex) => (
+                                <DropdownMenuItem
+                                  key={actionIndex}
+                                  onClick={() => action.onClick(item)}
+                                  className={action.variant === 'destructive' ? 'text-destructive' : ''}
+                                >
+                                  {action.icon && <action.icon className="mr-2 h-4 w-4" />}
+                                  {action.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : column.render ? (
+                          column.render(item[column.key], item)
+                        ) : (
+                          String(item[column.key] || '')
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
@@ -321,14 +381,18 @@ export function DataTable<T extends Record<string, any>>({
         {/* Pagination */}
         <div className="flex items-center justify-between px-2 py-4">
           <div className="text-sm text-muted-foreground">
-            Showing {sortedData.length} of {data.length} results
+            {isLoading ? (
+              <Skeleton className="h-4 w-32" />
+            ) : (
+              `Showing ${sortedData.length} of ${data.length} results`
+            )}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
-              Previous
+            <Button variant="outline" size="sm" disabled={isLoading}>
+              {isLoading ? <Skeleton className="h-4 w-16" /> : "Previous"}
             </Button>
-            <Button variant="outline" size="sm" disabled>
-              Next
+            <Button variant="outline" size="sm" disabled={isLoading}>
+              {isLoading ? <Skeleton className="h-4 w-12" /> : "Next"}
             </Button>
           </div>
         </div>
