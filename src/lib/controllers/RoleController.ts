@@ -355,6 +355,37 @@ export class RoleController extends BaseController<Role, RoleCreateData, RoleUpd
       };
     }
   }
+
+  async assignUsersToRole(roleId: number, userIds: number[]): Promise<ApiResponse<boolean>> {
+    try {
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return {
+          success: false,
+          error: 'User IDs array is required and cannot be empty'
+        };
+      } 
+      const result = await roleService.assignUsersToRole(roleId, userIds);
+
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to assign users to role'
+        };
+      }
+
+      return {
+        success: true,
+        data: true,
+        message: 'Users assigned to role successfully'
+      };
+    } catch (error) {
+      console.error('Assign users to role error:', error);
+      return {
+        success: false,
+        error: 'Failed to assign users to role'
+      };
+    } 
+  }
 }
 
 export const roleController = new RoleController();

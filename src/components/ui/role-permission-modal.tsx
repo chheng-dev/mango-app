@@ -69,7 +69,6 @@ interface User {
   isActive: boolean;
   isVerified: boolean;
   roles?: Role[];
-  permissions?: Permission[];
 }
 
 interface RolePermissionModalProps {
@@ -131,11 +130,13 @@ export function RolePermissionModal({
       if (user?.roles) {
         setUserRoles(user.roles);
         setSelectedRoles(user.roles.map(role => role.id));
-      }
-
-      if (user?.permissions) {
-        setUserPermissions(user.permissions);
-        setSelectedPermissions(user.permissions.map(perm => perm.id));
+        
+        const allPermissions = user.roles.flatMap(role => role.permissions || []);
+        const uniquePermissions = allPermissions.filter((permission, index, self) =>
+          index === self.findIndex(p => p.id === permission.id)
+        );
+        setUserPermissions(uniquePermissions);
+        setSelectedPermissions(uniquePermissions.map(perm => perm.id));
       }
 
     } catch (error) {

@@ -8,5 +8,4 @@ export interface UserWithRoles extends Omit<typeof users.$inferSelect, 'password
       permissions: Permission[]; 
     }
   )[];
-  permissions: Permission[];
 }
