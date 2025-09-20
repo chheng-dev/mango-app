@@ -24,7 +24,7 @@ import {
 } from './select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CalendarIcon, UserCheck, UserX, Mail, Phone, MapPin, Eye, EyeOff } from 'lucide-react';
-import { User } from '@/lib/api/UserService';
+import { User } from '@/lib/db/schemas/users';
 
 interface UserFormData {
   name: string;
@@ -81,7 +81,7 @@ export function UserModal({
         password: '',
         passwordConfirmation: '',
         phoneNumber: user.phoneNumber || '',
-        dob: user.dob || '',
+        dob: user.dob ? (user.dob instanceof Date ? user.dob.toISOString().split('T')[0] : user.dob) : '',
         isActive: user.isActive ?? true,
         isVerified: user.isVerified ?? false,
       });

@@ -1,9 +1,6 @@
-import { RoleInsert, RoleSelect, RoleWithPermissions } from '@/lib/models/RoleModel';
-import { ServiceResponse } from '@/lib/services/BaseService';
-import { RoleService } from '@/lib/services/RoleService';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-const roleService = new RoleService();
+import { roleApiService, Role, CreateRoleData, UpdateRoleData, ApiResponse } from '@/lib/api/roleApiService';
 
 // Query keys for cache management
 export const roleQueryKeys = {
@@ -27,6 +24,7 @@ export function useRoles(options: {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   enabled?: boolean;
+  includePermissions?: boolean;
 } = {}) {
   const {
     page = 1,
@@ -34,18 +32,20 @@ export function useRoles(options: {
     query,
     sortBy = 'createdAt',
     sortOrder = 'desc',
-    enabled = true
+    enabled = true,
+    includePermissions = true // Default to true to show permission counts
   } = options;
 
   return useQuery({
-    queryKey: roleQueryKeys.list({ page, limit, query, sortBy, sortOrder }),
-    queryFn: async (): Promise<ServiceResponse<RoleSelect[]>> => {
-      return await roleService.getAll({
+    queryKey: roleQueryKeys.list({ page, limit, query, sortBy, sortOrder, includePermissions }),
+    queryFn: async (): Promise<ApiResponse<Role[]>> => {
+      return await roleApiService.getAllRoles({
         page,
         limit,
         query,
         sortBy,
-        sortOrder
+        sortOrder,
+        includePermissions
       });
     },
     enabled,
@@ -59,22 +59,8 @@ export function useRoles(options: {
 export function useRole(id: number, enabled = true) {
   return useQuery({
     queryKey: roleQueryKeys.detail(id),
-    queryFn: async (): Promise<ServiceResponse<RoleSelect>> => {
-      return await roleService.getById(id);
-    },
-    enabled: enabled && !!id,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-/**
- * Get role with permissions
- */
-export function useRoleWithPermissions(id: number, enabled = true) {
-  return useQuery({
-    queryKey: roleQueryKeys.withPermissions(id),
-    queryFn: async (): Promise<ServiceResponse<RoleWithPermissions>> => {
-      return await roleService.getRoleWithPermissions(id);
+    queryFn: async (): Promise<ApiResponse<Role>> => {
+      return await roleApiService.getRoleById(id);
     },
     enabled: enabled && !!id,
     staleTime: 5 * 60 * 1000,
@@ -90,8 +76,8 @@ export function useCreateRole() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: RoleInsert): Promise<ServiceResponse<RoleSelect>> => {
-      return await roleService.createRole(data);
+    mutationFn: async (data: CreateRoleData): Promise<ApiResponse<Role>> => {
+      return await roleApiService.createRole(data);
     },
     onSuccess: (response) => {
       if (response.success) {
@@ -120,8 +106,8 @@ export function useUpdateRole() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<RoleInsert> }): Promise<ServiceResponse<RoleSelect>> => {
-      return await roleService.updateRole(id, data);
+    mutationFn: async ({ id, data }: { id: number; data: UpdateRoleData }): Promise<ApiResponse<Role>> => {
+      return await roleApiService.updateRole(id, data);
     },
     onSuccess: (response, { id }) => {
       if (response.success) {
@@ -175,8 +161,8 @@ export function useDeleteRole() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: number): Promise<ServiceResponse<boolean>> => {
-      return await roleService.delete(id);
+    mutationFn: async (id: number): Promise<ApiResponse<boolean>> => {
+      return await roleApiService.deleteRole(id);
     },
     onSuccess: (response, id) => {
       if (response.success) {
@@ -202,7 +188,7 @@ export function useAssignPermissions() {
 
   return useMutation({
     mutationFn: async ({ roleId, permissionIds }: { roleId: number; permissionIds: number[] }) => {
-      return await roleService.assignPermissions(roleId, permissionIds);
+      return await roleApiService.assignPermissions(roleId, permissionIds);
     },
     onSuccess: (response, { roleId }) => {
       if (response.success) {
@@ -221,16 +207,84 @@ export function useAssignPermissions() {
   });
 }
 
+/**
+ * Remove permissions from role
+ */
+export function useRemovePermissions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ roleId, permissionIds }: { roleId: number; permissionIds: number[] }) => {
+      return await roleApiService.removePermissions(roleId, permissionIds);
+    },
+    onSuccess: (response, { roleId }) => {
+      if (response.success) {
+        // Invalidate role with permissions
+        queryClient.invalidateQueries({ 
+          queryKey: roleQueryKeys.withPermissions(roleId) 
+        });
+        
+        // Optionally invalidate role lists if they show permission counts
+        queryClient.invalidateQueries({ queryKey: roleQueryKeys.lists() });
+      }
+    },
+    onError: (error) => {
+      console.error('Remove permissions error:', error);
+    },
+  });
+}
+
+/**
+ * Update role permissions (replace all)
+ */
+export function useUpdateRolePermissions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ roleId, permissionIds }: { roleId: number; permissionIds: number[] }) => {
+      return await roleApiService.updateRolePermissions(roleId, permissionIds);
+    },
+    onSuccess: (response, { roleId }) => {
+      if (response.success) {
+        // Invalidate role with permissions
+        queryClient.invalidateQueries({ 
+          queryKey: roleQueryKeys.withPermissions(roleId) 
+        });
+        
+        // Optionally invalidate role lists if they show permission counts
+        queryClient.invalidateQueries({ queryKey: roleQueryKeys.lists() });
+      }
+    },
+    onError: (error) => {
+      console.error('Update role permissions error:', error);
+    },
+  });
+}
+
+/**
+ * Get role with permissions
+ */
+export function useRoleWithPermissions(roleId: number, enabled = true) {
+  return useQuery({
+    queryKey: roleQueryKeys.withPermissions(roleId),
+    queryFn: async (): Promise<ApiResponse<Role>> => {
+      return await roleApiService.getRoleWithPermissions(roleId);
+    },
+    enabled: enabled && !!roleId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 // ==================== UTILITY HOOKS ====================
 
 /**
  * Hook for role form state management
  */
-export function useRoleForm(initialData?: Partial<RoleInsert>) {
-  const [formData, setFormData] = useState<Partial<RoleInsert>>(initialData || {});
+export function useRoleForm(initialData?: Partial<CreateRoleData>) {
+  const [formData, setFormData] = useState<Partial<CreateRoleData>>(initialData || {});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const updateField = (field: keyof RoleInsert, value: any) => {
+  const updateField = (field: keyof CreateRoleData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear error for this field
@@ -304,6 +358,3 @@ export function useRoleSearch() {
     error: rolesQuery.error,
   };
 }
-
-// Required import for useState and useEffect
-import { useState, useEffect } from 'react';

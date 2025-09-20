@@ -3,6 +3,7 @@
 import { useAuth } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect, ReactNode } from 'react';
+import { GlobalLoading } from '@/components/ui/loading';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -22,15 +23,11 @@ export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRou
   }, [isAuthenticated, isLoading, isInitialized, router, redirectTo]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+    return <GlobalLoading message="Verifying access..." />;
   }
 
   if (!isAuthenticated) {
-    return null;
+    return <GlobalLoading message="Redirecting to login..." />;
   }
 
   return <>{children}</>;

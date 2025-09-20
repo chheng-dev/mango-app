@@ -14,6 +14,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/store/authStore";
+import { useGlobalLoading } from "@/hooks/useGlobalLoading";
+import { InlineLoading } from "@/components/ui/loading";
 
 export function LoginForm({
   className,
@@ -23,20 +25,28 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const { login, isLoading } = useAuth();
+  const { withLoading } = useGlobalLoading();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    const result = await login(email, password);
-    
-    if (result.success) {
-      // Redirect to admin or intended page
-      const redirect = new URLSearchParams(window.location.search).get('redirect');
-      router.push(redirect || '/admin');
-    } else {
-      setError(result.error || 'Login failed');
+    try {
+      const result = await withLoading(
+        () => login(email, password),
+        'Signing in...'
+      );
+      
+      if (result.success) {
+        // Redirect to admin or intended page
+        const redirect = new URLSearchParams(window.location.search).get('redirect');
+        router.push(redirect || '/admin');
+      } else {
+        setError(result.error || 'Login failed');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
     }
   };
 
@@ -85,7 +95,11 @@ export function LoginForm({
                 className="w-full"
                 disabled={isLoading}
               >
-                {isLoading ? "Signing in..." : "Login"}
+                {isLoading ? (
+                  <InlineLoading size="sm" message="Signing in..." />
+                ) : (
+                  "Login"
+                )}
               </Button>
             </div>
           </form>

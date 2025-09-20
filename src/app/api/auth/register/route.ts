@@ -1,35 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { userController } from '@/lib/controllers/UserController';
+import { BaseRoute, withErrorHandling } from '@/lib/utils/BaseRoute';
 
 /**
  * User Registration API
  */
 
-// POST /api/auth/register - User registration
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandling(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { email, name, code, password, passwordConfirmation, dob, phoneNumber } = body;
 
     // Validate required fields
     if (!email || !name || !code || !password || !passwordConfirmation) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Email, name, code, password, and password confirmation are required'
-        },
-        { status: 400 }
+      return BaseRoute.errorResponse(
+        'Email, name, code, password, and password confirmation are required',
+        400
       );
     }
 
     // Check password match
     if (password !== passwordConfirmation) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Password confirmation does not match'
-        },
-        { status: 400 }
+      return BaseRoute.errorResponse(
+        'Password confirmation does not match',
+        400
       );
     }
 
@@ -72,18 +66,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(result, { 
-      status: result.success ? 201 : 400 
+    return BaseRoute.successResponse(result, {
+      successStatus: result.success ? 201 : 400
     });
 
   } catch (error) {
     console.error('Registration API error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Registration failed'
-      },
-      { status: 500 }
+    return BaseRoute.errorResponse(
+      error instanceof Error ? error.message : 'Registration failed',
+      500
     );
   }
-}
+}, 'POST Register');

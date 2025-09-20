@@ -1,6 +1,7 @@
 import { ApiResponse } from '../controllers/BaseController';
 import { userService } from './UserService';
 import { rolePermissionService } from './RolePermissionService';
+import { UserSelect, UserWithRoles } from '../models/UserModel';
 
 export class UserManagementService {
   /**
@@ -31,12 +32,27 @@ export class UserManagementService {
         isVerified: params.isVerified
       });
 
-      let users = result.users.map(user => this.removeSensitiveFields(user));
+      if (!result.success || !result.data) {
+        return {
+          success: false,
+          error: result.error || 'Failed to fetch users'
+        };
+      }
+
+      let users: any[] = result.data.users.map((user: any) => this.removeSensitiveFields(user));
 
       // Include roles if requested
       if (params.includeRoles && users.length > 0) {
-        const usersWithRoles = await userService.includeRoles(result.users);
-        users = usersWithRoles.map(user => this.removeSensitiveFields(user));
+        const usersWithRoles = await Promise.all(
+          result.data.users.map(async (user: any) => {
+            const userWithRolesResult = await userService.getUserWithRoles(user.id);
+            if (userWithRolesResult.success && userWithRolesResult.data) {
+              return userWithRolesResult.data;
+            }
+            return user;
+          })
+        );
+        users = usersWithRoles.map((user: any) => this.removeSensitiveFields(user));
       }
 
       return {
@@ -61,29 +77,32 @@ export class UserManagementService {
     unverified: number;
   }>> {
     try {
-      const [
-        total,
-        active,
-        inactive,
-        verified,
-        unverified
-      ] = await Promise.all([
-        userService.count(),
-        userService.count({ isActive: true }),
-        userService.count({ isActive: false }),
-        userService.count({ isVerified: true }),
-        userService.count({ isVerified: false })
-      ]);
+      // Get all users to calculate statistics
+      const allUsersResult = await userService.getAll({ 
+        page: 1, 
+        limit: 10000 // Large limit to get all users
+      });
+
+      if (!allUsersResult.success || !allUsersResult.data) {
+        return { 
+          success: false, 
+          error: 'Failed to fetch users for statistics' 
+        };
+      }
+
+      const users = allUsersResult.data;
+      
+      const stats = {
+        total: users.length,
+        active: users.filter(user => user.isActive === true).length,
+        inactive: users.filter(user => user.isActive === false).length,
+        verified: users.filter(user => user.isVerified === true).length,
+        unverified: users.filter(user => user.isVerified === false).length
+      };
 
       return {
         success: true,
-        data: {
-          total,
-          active,
-          inactive,
-          verified,
-          unverified
-        }
+        data: stats
       };
     } catch (error) {
       console.error('Get user stats error:', error);
@@ -173,21 +192,24 @@ export class UserManagementService {
     try {
       // Check if email is changing and if it's already taken
       if (profileData.email) {
-        const existingUser = await userService.findByEmail(profileData.email);
-        if (existingUser && existingUser.id !== userId) {
+        const existingUserResult = await userService.findByEmail(profileData.email);
+        if (existingUserResult.success && existingUserResult.data && existingUserResult.data.id !== userId) {
           return { success: false, error: 'Email already in use' };
         }
       }
 
-      const updatedUser = await userService.update(userId, profileData);
+      const updatedUserResult = await userService.updateUser(userId, profileData);
       
-      if (!updatedUser) {
-        return { success: false, error: 'User not found' };
+      if (!updatedUserResult.success || !updatedUserResult.data) {
+        return { 
+          success: false, 
+          error: updatedUserResult.error || 'User not found' 
+        };
       }
 
       return {
         success: true,
-        data: this.removeSensitiveFields(updatedUser),
+        data: this.removeSensitiveFields(updatedUserResult.data),
         message: 'Profile updated successfully'
       };
     } catch (error) {

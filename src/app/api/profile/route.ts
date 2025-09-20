@@ -1,23 +1,25 @@
-import { NextResponse } from 'next/server';
-import { withAuth, AuthenticatedRequest } from '@/lib/middleware/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { BaseRoute, withErrorHandling } from '@/lib/utils/BaseRoute';
 import { userController } from '@/lib/controllers/UserController';
 
-export const GET = withAuth(async (request: AuthenticatedRequest) => {
+export const GET = withErrorHandling(async (request: NextRequest) => {
   try {
-    const user = request.user;
+    const authResult = await BaseRoute.authenticateRequest(request, {
+      requireAuth: true,
+      requiredPermissions: [],
+      allowSelf: false
+    });
 
-    if (!user || (!user.id && !user.userId)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid user session'
-        },
-        { status: 401 }
-      );
+    if (!authResult.success) {
+      return authResult.response || BaseRoute.errorResponse('Authentication failed', 401);
     }
 
-    // Use userId from JWT token payload
-    const userId = user.id || user.userId;
+    const user = authResult.auth?.user;
+    if (!user || !user.id) {
+      return BaseRoute.errorResponse('Invalid user session', 401);
+    }
+
+    const userId = user.id;
     const result = await userController.getCurrentUser(userId);
     
     if (result.success) {
@@ -28,40 +30,35 @@ export const GET = withAuth(async (request: AuthenticatedRequest) => {
       });
     }
 
-    // Log the actual error for debugging
     console.error('Profile retrieval failed:', result.error);
-    return NextResponse.json(result, { status: 400 });
+    return BaseRoute.successResponse(result, { successStatus: 400 });
 
   } catch (error) {
     console.error('Get profile error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to get profile'
-      },
-      { status: 500 }
-    );
+    return BaseRoute.errorResponse('Failed to get profile', 500);
   }
-});
+}, 'GET Profile');
 
-// PUT /api/profile - Update current user's profile (protected)
-export const PUT = withAuth(async (request: AuthenticatedRequest) => {
+export const PUT = withErrorHandling(async (request: NextRequest) => {
   try {
-    const user = request.user;
-    
-    // Add validation for user object - check for both id and userId
-    if (!user || (!user.id && !user.userId)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid user session'
-        },
-        { status: 401 }
-      );
+    // Authenticate request
+    const authResult = await BaseRoute.authenticateRequest(request, {
+      requireAuth: true,
+      requiredPermissions: [],
+      allowSelf: false
+    });
+
+    if (!authResult.success) {
+      return authResult.response || BaseRoute.errorResponse('Authentication failed', 401);
     }
 
-    // Use userId from JWT token payload
-    const userId = user.id || user.userId;
+    const user = authResult.auth?.user;
+    if (!user || !user.id) {
+      return BaseRoute.errorResponse('Invalid user session', 401);
+    }
+
+    // Use userId from auth context
+    const userId = user.id;
     const body = await request.json();
 
     // Remove sensitive fields that shouldn't be updated via this endpoint
@@ -92,40 +89,37 @@ export const PUT = withAuth(async (request: AuthenticatedRequest) => {
     // Use the clean service-based update method
     const result = await userController.update(userId, cleanedData);
     
-    return NextResponse.json(result, { 
-      status: result.success ? 200 : 400 
+    return BaseRoute.successResponse(result, {
+      successStatus: result.success ? 200 : 400
     });
 
   } catch (error) {
     console.error('Update profile error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to update profile'
-      },
-      { status: 500 }
-    );
+    return BaseRoute.errorResponse('Failed to update profile', 500);
   }
-});
+}, 'PUT Profile');
 
 // DELETE /api/profile - Deactivate current user's account (protected)
-export const DELETE = withAuth(async (request: AuthenticatedRequest) => {
+export const DELETE = withErrorHandling(async (request: NextRequest) => {
   try {
-    const user = request.user;
+    // Authenticate request
+    const authResult = await BaseRoute.authenticateRequest(request, {
+      requireAuth: true,
+      requiredPermissions: [],
+      allowSelf: false
+    });
 
-    // Add validation for user object - check for both id and userId
-    if (!user || (!user.id && !user.userId)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid user session'
-        },
-        { status: 401 }
-      );
+    if (!authResult.success) {
+      return authResult.response || BaseRoute.errorResponse('Authentication failed', 401);
     }
 
-    // Use userId from JWT token payload
-    const userId = user.id || user.userId;
+    const user = authResult.auth?.user;
+    if (!user || !user.id) {
+      return BaseRoute.errorResponse('Invalid user session', 401);
+    }
+
+    // Use userId from auth context
+    const userId = user.id;
 
     // Use the clean service-based updateStatus method
     const result = await userController.updateStatus(userId, false);
@@ -148,18 +142,10 @@ export const DELETE = withAuth(async (request: AuthenticatedRequest) => {
       return response;
     }
 
-    return NextResponse.json(result, { 
-      status: 400 
-    });
+    return BaseRoute.successResponse(result, { successStatus: 400 });
 
   } catch (error) {
     console.error('Deactivate account error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to deactivate account'
-      },
-      { status: 500 }
-    );
+    return BaseRoute.errorResponse('Failed to deactivate account', 500);
   }
-});
+}, 'DELETE Profile');

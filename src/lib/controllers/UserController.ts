@@ -1,4 +1,4 @@
-import { ApiResponse } from './BaseController';
+import { BaseController, ApiResponse, ValidationError } from './BaseController';
 import { User, NewUser } from '../db/schemas/users';
 import { userService } from '../services/UserService';
 import { PasswordService } from '../services/passwordService';
@@ -17,11 +17,37 @@ export interface RegisterData {
   code?: string;
 }
 
+interface UserCreateData {
+  email: string;
+  name: string;
+  code: string;
+  passwordHash: string;
+  passwordConfirmation: string;
+  isActive?: boolean;
+  isVerified?: boolean;
+}
+
+interface UserUpdateData {
+  email?: string;
+  name?: string;
+  code?: string;
+  passwordHash?: string;
+  passwordConfirmation?: string;
+  isActive?: boolean;
+  isVerified?: boolean;
+  phoneNumber?: string;
+  dob?: Date;
+}
+
 /**
- * UserController - Pure service-based controller
- * Delegates all operations to services for clean separation
+ * UserController - Service-based controller extending BaseController
+ * Provides user-specific operations with inherited CRUD functionality
  */
-export class UserController {
+export class UserController extends BaseController<User, UserCreateData, UserUpdateData, typeof userService> {
+  
+  constructor() {
+    super(userService);
+  }
   /**
    * User login
    */
@@ -106,7 +132,7 @@ export class UserController {
       const hashedPassword = await PasswordService.hash(userData.password);
 
       // Create user data
-      const newUserData: NewUser = {
+      const newUserData: UserCreateData = {
         email: userData.email.toLowerCase(),
         name: userData.name,
         code: userData.code || `USER_${Date.now()}`,
@@ -116,8 +142,8 @@ export class UserController {
         isVerified: false,
       };
 
-      // Create user
-      const createUserResult = await userService.createUser(newUserData);
+      // Create user using the base class method
+      const createUserResult = await this.create(newUserData);
       if (!createUserResult.success || !createUserResult.data) {
         return {
           success: false,
@@ -153,9 +179,9 @@ export class UserController {
   }
 
   /**
-   * Get all users with pagination and filtering
+   * Get all users with enhanced functionality (includes roles option)
    */
-  async getAll(params?: {
+  async getAllUsers(params?: {
     page?: number;
     limit?: number;
     query?: string;
@@ -213,34 +239,7 @@ export class UserController {
   }
 
   /**
-   * Get user by ID
-   */
-  async getById(id: number): Promise<ApiResponse<User>> {
-    try {
-      const result = await userService.getById(id);
-
-      if (!result.success || !result.data) {
-        return {
-          success: false,
-          error: result.error || 'User not found'
-        };
-      }
-
-      return {
-        success: true,
-        data: result.data
-      };
-    } catch (error) {
-      console.error('Get user by ID error:', error);
-      return {
-        success: false,
-        error: 'Failed to get user'
-      };
-    }
-  }
-
-  /**
-   * Get user by email
+   * Get user by email (user-specific method)
    */
   async getByEmail(email: string): Promise<ApiResponse<User>> {
     try {
@@ -267,7 +266,7 @@ export class UserController {
   }
 
   /**
-   * Get user by code
+   * Get user by code (user-specific method)
    */
   async getByCode(code: string): Promise<ApiResponse<User>> {
     try {
@@ -294,94 +293,32 @@ export class UserController {
   }
 
   /**
-   * Create new user
+   * Create user from legacy NewUser format
    */
-  async create(data: NewUser): Promise<ApiResponse<User>> {
+  async createFromLegacy(data: NewUser): Promise<ApiResponse<User>> {
     try {
-      // Convert NewUser to RegisterData format
-      const userData: RegisterData = {
+      // Hash the password if it's not already hashed
+      const hashedPassword = data.passwordHash?.startsWith('$') ? 
+        data.passwordHash : 
+        await PasswordService.hash(data.passwordHash || '');
+
+      // Convert NewUser to UserCreateData format
+      const userData: UserCreateData = {
         email: data.email || '',
-        password: data.passwordHash || '',
-        passwordConfirmation: data.passwordHash || '',
         name: data.name || '',
-        code: data.code || ''
+        code: data.code || `USER_${Date.now()}`,
+        passwordHash: hashedPassword,
+        passwordConfirmation: hashedPassword,
+        isActive: data.isActive ?? true,
+        isVerified: data.isVerified ?? false
       };
 
-      const result = await this.register(userData);
-      
-      if (result.success && result.data) {
-        return {
-          success: true,
-          data: result.data.user,
-          message: 'User created successfully'
-        };
-      }
-
-      return {
-        success: false,
-        error: result.error || 'Failed to create user'
-      };
+      return await this.create(userData);
     } catch (error) {
-      console.error('Create user error:', error);
+      console.error('Create user from legacy error:', error);
       return {
         success: false,
         error: 'Failed to create user'
-      };
-    }
-  }
-
-  /**
-   * Update user
-   */
-  async update(id: number, data: Partial<NewUser>): Promise<ApiResponse<User>> {
-    try {
-      const result = await userService.updateUser(id, data);
-
-      if (!result.success || !result.data) {
-        return {
-          success: false,
-          error: result.error || 'User not found'
-        };
-      }
-
-      return {
-        success: true,
-        data: result.data,
-        message: 'User updated successfully'
-      };
-    } catch (error) {
-      console.error('Update user error:', error);
-      return {
-        success: false,
-        error: 'Failed to update user'
-      };
-    }
-  }
-
-  /**
-   * Delete user (soft delete)
-   */
-  async delete(id: number): Promise<ApiResponse<boolean>> {
-    try {
-      const result = await this.updateStatus(id, false);
-      
-      if (result.success) {
-        return {
-          success: true,
-          data: true,
-          message: 'User deleted successfully'
-        };
-      }
-
-      return {
-        success: false,
-        error: result.error || 'Failed to delete user'
-      };
-    } catch (error) {
-      console.error('Delete user error:', error);
-      return {
-        success: false,
-        error: 'Failed to delete user'
       };
     }
   }
@@ -523,14 +460,20 @@ export class UserController {
   }
 
   /**
-   * Search users
+   * Search users (enhanced version of base search)
    */
-  async searchUsers(query: string, limit: number = 10): Promise<ApiResponse<User[]>> {
+  async searchUsers(query: string, options: { 
+    limit?: number;
+    includeInactive?: boolean;
+    includeRoles?: boolean;
+  } = {}): Promise<ApiResponse<User[]>> {
     try {
+      const { limit = 10, includeInactive = false, includeRoles = false } = options;
+      
       const result = await userService.searchUsers(query, { 
         limit,
-        includeInactive: false,
-        includeRoles: false
+        includeInactive,
+        includeRoles
       });
 
       if (!result.success) {
@@ -597,6 +540,34 @@ export class UserController {
     }
   }
 
+  /**
+   * Get user with roles and permissions
+   */
+  async getUserWithRoles(userId: number): Promise<ApiResponse<any>> {
+    try {
+      const result = await userService.getUserWithRoles(userId);
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to get user with roles'
+        };
+      }
+
+      return {
+        success: true,
+        data: result.data,
+        message: 'User with roles retrieved successfully'
+      };
+    } catch (error) {
+      console.error('Get user with roles error:', error);
+      return {
+        success: false,
+        error: 'Failed to get user with roles'
+      };
+    }
+  }
+
   async hasPermission(userId: number, permissionSlug: string): Promise<boolean> {
     try {
       const userResult = await userService.getUserWithRoles(userId);
@@ -610,6 +581,174 @@ export class UserController {
       console.error('Check permission error:', error);
       return false;
     }
+  }
+
+  /**
+   * Get users available for role assignment
+   */
+  async getUsersForRoleAssignment(params?: {
+    page?: number;
+    limit?: number;
+    query?: string;
+    excludeRoleId?: number;
+    isActive?: boolean;
+  }): Promise<ApiResponse<any[]>> {
+    try {
+      const result = await this.getAllUsers({
+        page: params?.page || 1,
+        limit: params?.limit || 50,
+        query: params?.query,
+        isActive: params?.isActive ?? true, // Default to active users only
+        includeRoles: true
+      });
+
+      if (!result.success || !result.data) {
+        return {
+          success: false,
+          error: result.error || 'Failed to fetch users'
+        };
+      }
+
+      let users = result.data;
+
+      // Filter out users already assigned to the specified role
+      if (params?.excludeRoleId) {
+        users = users.filter(user => {
+          const userRoles = (user as any).roles || [];
+          return !userRoles.some((role: any) => role.id === params.excludeRoleId);
+        });
+      }
+
+      // Remove sensitive fields from users
+      const sanitizedUsers = users.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        code: user.code,
+        isActive: user.isActive,
+        isVerified: user.isVerified,
+        createdAt: user.createdAt,
+        roles: (user as any).roles || []
+      }));
+
+      return {
+        success: true,
+        data: sanitizedUsers,
+        pagination: result.pagination,
+        message: 'Users retrieved successfully'
+      };
+    } catch (error) {
+      console.error('Get users for role assignment error:', error);
+      return {
+        success: false,
+        error: 'Failed to get users for role assignment'
+      };
+    }
+  }
+
+  // ==================== HOOK OVERRIDES ====================
+
+  /**
+   * Validate user creation data
+   */
+  protected validateCreateData(data: UserCreateData): ApiResponse<User> | null {
+    const errors = this.validateRequiredFields(data, ['email', 'name', 'code']);
+    
+    if (errors.length > 0) {
+      return {
+        success: false,
+        error: errors.map(e => e.message).join(', ')
+      };
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+      return {
+        success: false,
+        error: 'Invalid email format'
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Process data before user creation
+   */
+  protected async beforeCreate(data: UserCreateData): Promise<UserCreateData> {
+    // Ensure email is lowercase
+    data.email = data.email.toLowerCase();
+    
+    // Generate code if not provided
+    if (!data.code) {
+      data.code = `USER_${Date.now()}`;
+    }
+
+    // Set default values
+    if (data.isActive === undefined) {
+      data.isActive = true;
+    }
+
+    if (data.isVerified === undefined) {
+      data.isVerified = false;
+    }
+
+    return data;
+  }
+
+  /**
+   * Process data before user update
+   */
+  protected async beforeUpdate(id: number, data: UserUpdateData): Promise<UserUpdateData> {
+    // Ensure email is lowercase if being updated
+    if (data.email) {
+      data.email = data.email.toLowerCase();
+    }
+
+    return data;
+  }
+
+  /**
+   * Check if user can be deleted
+   */
+  protected async canDelete(id: number): Promise<{ allowed: boolean; reason?: string }> {
+    try {
+      // Get user details to check if it's a system user
+      const user = await this.getById(id);
+      if (user.success && user.data) {
+        // Prevent deletion of system users (you can customize this logic)
+        const systemEmails = ['admin@system.com', 'root@system.com'];
+        if (systemEmails.includes(user.data.email)) {
+          return {
+            allowed: false,
+            reason: 'System users cannot be deleted'
+          };
+        }
+      }
+
+      return { allowed: true };
+    } catch (error) {
+      return {
+        allowed: false,
+        reason: 'Unable to verify user deletion requirements'
+      };
+    }
+  }
+
+  /**
+   * Get success messages
+   */
+  protected getCreateSuccessMessage(): string {
+    return 'User created successfully';
+  }
+
+  protected getUpdateSuccessMessage(): string {
+    return 'User updated successfully';
+  }
+
+  protected getDeleteSuccessMessage(): string {
+    return 'User deleted successfully';
   }
 }
 

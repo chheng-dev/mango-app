@@ -1,5 +1,5 @@
 import { BaseService, ServiceResponse, BusinessRuleResult } from './BaseService';
-import { RoleModel, RoleSelect, RoleInsert, RoleWithPermissions } from '../models/RoleModel';
+import { RoleModel, RoleSelect, RoleInsert, RoleWithPermissions, RoleWithUsers } from '../models/RoleModel';
 import { ValidationError } from '../models/BaseModel';
 import { db } from '../db';
 import { userRoles } from '../db/schemas/user_roles';
@@ -106,6 +106,33 @@ export class RoleService extends BaseService<RoleModel, RoleSelect, RoleInsert> 
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to get role with permissions'
+      };
+    }
+  }
+
+  /**
+   * Get role with its assigned users for user management
+   */
+  async getRoleWithUsers(roleId: number): Promise<ServiceResponse<RoleWithUsers>> {
+    try {
+      const result = await this.model.findWithUsers(roleId);
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to fetch role with users'
+        };
+      }
+
+      return {
+        success: true,
+        data: result.data
+      };
+    } catch (error) {
+      console.error('RoleService getRoleWithUsers error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch role with users'
       };
     }
   }
@@ -264,6 +291,201 @@ export class RoleService extends BaseService<RoleModel, RoleSelect, RoleInsert> 
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to assign users to role'
+      };
+    }
+  }
+
+  /**
+   * Remove users from role
+   */
+  async removeUsersFromRole(roleId: number, userIds: number[]): Promise<ServiceResponse<any>> {
+    try {
+      // Check if role exists
+      const roleExists = await this.model.exists(roleId);
+      if (!roleExists) {
+        return {
+          success: false,
+          error: 'Role not found'
+        };
+      }
+
+      if (userIds.length === 0) {
+        return {
+          success: false,
+          error: 'At least one user ID must be specified'
+        };
+      }
+
+      // Remove assignments
+      const result = await db
+        .delete(userRoles)
+        .where(
+          and(
+            eq(userRoles.roleId, roleId),
+            inArray(userRoles.userId, userIds)
+          )
+        )
+        .returning();
+
+      this.logOperation('removeUsersFromRole', { roleId, userIds });
+
+      return {
+        success: true,
+        data: result,
+        message: `Successfully removed ${userIds.length} users from role`
+      };
+
+    } catch (error) {
+      console.error('RoleService removeUsersFromRole error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to remove users from role'
+      };
+    }
+  }
+
+  /**
+   * Remove permissions from role
+   */
+  async removePermissions(roleId: number, permissionIds: number[]): Promise<ServiceResponse<any>> {
+    try {
+      if (!Array.isArray(permissionIds) || permissionIds.length === 0) {
+        return {
+          success: false,
+          error: 'Permission IDs array is required and cannot be empty'
+        };
+      }
+
+      // Validate role exists
+      const role = await this.getById(roleId);
+      if (!role.success || !role.data) {
+        return {
+          success: false,
+          error: 'Role not found'
+        };
+      }
+
+      // Validate business rules
+      const businessCheck = await this.validatePermissionRemoval(roleId, permissionIds);
+      if (!businessCheck.valid) {
+        return {
+          success: false,
+          error: businessCheck.message || 'Business rule validation failed'
+        };
+      }
+
+      const result = await this.model.removePermissions(roleId, permissionIds);
+
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to remove permissions'
+        };
+      }
+
+      this.logOperation('removePermissions', { roleId, permissionIds });
+
+      return {
+        success: true,
+        data: result.data,
+        message: `Successfully removed ${permissionIds.length} permissions from role`
+      };
+
+    } catch (error) {
+      console.error('RoleService removePermissions error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to remove permissions'
+      };
+    }
+  }
+
+  /**
+   * Replace all permissions for a role
+   */
+  async replacePermissions(roleId: number, permissionIds: number[]): Promise<ServiceResponse<any>> {
+    try {
+      // Validate role exists and get current permissions
+      const roleWithPermissions = await this.model.findWithPermissions(roleId);
+      if (!roleWithPermissions.success || !roleWithPermissions.data) {
+        return {
+          success: false,
+          error: 'Role not found'
+        };
+      }
+
+      const currentPermissionIds = roleWithPermissions.data.permissions.map((p: any) => p.id);
+
+      // Remove all current permissions if any exist
+      if (currentPermissionIds.length > 0) {
+        const removeResult = await this.removePermissions(roleId, currentPermissionIds);
+        if (!removeResult.success) {
+          return {
+            success: false,
+            error: `Failed to remove existing permissions: ${removeResult.error}`
+          };
+        }
+      }
+
+      // Assign new permissions if any provided
+      if (permissionIds.length > 0) {
+        const assignResult = await this.assignPermissions(roleId, permissionIds);
+        if (!assignResult.success) {
+          return {
+            success: false,
+            error: `Failed to assign new permissions: ${assignResult.error}`
+          };
+        }
+      }
+
+      this.logOperation('replacePermissions', { roleId, oldPermissions: currentPermissionIds, newPermissions: permissionIds });
+
+      return {
+        success: true,
+        data: null,
+        message: `Successfully replaced permissions for role. Removed ${currentPermissionIds.length}, added ${permissionIds.length}`
+      };
+
+    } catch (error) {
+      console.error('RoleService replacePermissions error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to replace permissions'
+      };
+    }
+  }
+
+  /**
+   * Validate permission removal business rules
+   */
+  private async validatePermissionRemoval(roleId: number, permissionIds: number[]): Promise<BusinessRuleResult> {
+    try {
+      // Get role details
+      const role = await this.getById(roleId);
+      if (!role.success || !role.data) {
+        return {
+          valid: false,
+          message: 'Role not found'
+        };
+      }
+
+      // Check if role is system role (admin, super-admin, etc.)
+      const systemRoles = ['admin', 'super-admin', 'root', 'system'];
+      if (systemRoles.includes(role.data.slug || '')) {
+        return {
+          valid: false,
+          message: 'Cannot remove permissions from system roles'
+        };
+      }
+
+      // Additional business rule: Check if removing permissions would leave role without essential permissions
+      // This would require checking which permissions are currently assigned and ensuring core permissions remain
+      
+      return { valid: true };
+    } catch (error) {
+      return {
+        valid: false,
+        message: 'Failed to validate permission removal'
       };
     }
   }
