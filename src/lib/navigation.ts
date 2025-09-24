@@ -51,16 +51,8 @@ export const mainNavigation: NavigationItem[] = [
     permissions: PERMISSION_COMBINATIONS.PERMISSION_MANAGEMENT,
     category: 'rbac'
   },
-  { 
-    name: 'RBAC Dashboard', 
-    href: '/admin/rbac', 
-    icon: Shield,
-    permissions: PERMISSION_COMBINATIONS.RBAC_ACCESS,
-    category: 'rbac'
-  },
 ];
 
-// Business navigation items
 export const businessNavigation: NavigationItem[] = [
   { 
     name: 'Products', 
@@ -78,7 +70,6 @@ export const businessNavigation: NavigationItem[] = [
   },
 ];
 
-// Event management navigation items
 export const eventNavigation: NavigationItem[] = [
   { 
     name: 'My Schedule', 
@@ -110,48 +101,20 @@ export const eventNavigation: NavigationItem[] = [
   },
 ];
 
-// Utility navigation items
-export const utilityNavigation: NavigationItem[] = [
-  { 
-    name: 'Notifications', 
-    href: '/admin/notifications', 
-    icon: Bell, 
-    badge: '5',
-    permissions: ['notifications:read'],
-    category: 'utility'
-  },
-  { 
-    name: 'Documents', 
-    href: '/admin/documents', 
-    icon: FileText,
-    permissions: ['documents:read'],
-    category: 'utility'
-  },
-  { 
-    name: 'Help', 
-    href: '/admin/help', 
-    icon: HelpCircle,
-    permissions: [], // Always accessible
-    category: 'utility'
-  },
-];
 
 // All navigation items combined
 export const allNavigation = [
   ...mainNavigation,
   ...businessNavigation,
   ...eventNavigation,
-  ...utilityNavigation,
 ];
 
 // Navigation organized by categories
 export const navigationByCategory = {
   overview: mainNavigation.filter(item => item.category === 'overview'),
   users: mainNavigation.filter(item => item.category === 'users'),
-  rbac: mainNavigation.filter(item => item.category === 'rbac'),
   business: businessNavigation,
   events: eventNavigation,
-  utility: utilityNavigation,
 };
 
 // Permission groups for easier management

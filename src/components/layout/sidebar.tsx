@@ -11,7 +11,6 @@ import {
   mainNavigation, 
   businessNavigation, 
   eventNavigation, 
-  utilityNavigation, 
   type NavigationItem as NavItem 
 } from '@/lib/navigation';
 
@@ -129,36 +128,8 @@ export function Sidebar({ className }: SidebarProps) {
           <Separator className="my-2" />
         </div>
 
-        {/* Events Section */}
-        <div className="p-4 space-y-1">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-            Events
-          </div>
-          {eventNavigation.map((item) => (
-            <NavigationItem
-              key={item.name}
-              item={item}
-              isActive={pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))}
-            />
-          ))}
-        </div>
-
         <div className="px-4">
           <Separator className="my-2" />
-        </div>
-
-        {/* Utility Section */}
-        <div className="p-4 space-y-1">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-            Utility
-          </div>
-          {utilityNavigation.map((item) => (
-            <NavigationItem
-              key={item.name}
-              item={item}
-              isActive={pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))}
-            />
-          ))}
         </div>
       </div>
 

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import { toast } from '@/lib/utils/toast';
+import { useRole } from './useRole';
+import { usePermissionsList } from './usePermissionsList';
+import { useUpdateRole } from './useUpdateRole';
 
 interface Permission {
   id: number;
@@ -28,68 +30,36 @@ export function useEditRolePage() {
   // State
   const [saving, setSaving] = useState(false);
 
-  // Fetch role data
+  // Fetch role data using separated hook
   const { 
     data: roleData, 
     isLoading: roleLoading, 
     error: roleError 
-  } = useQuery({
-    queryKey: ['roles', roleId],
-    queryFn: async () => {
-      const response = await fetch(`/api/rbac/roles/${roleId}`);
-      if (!response.ok) throw new Error('Failed to fetch role');
-      return response.json();
-    },
-    enabled: !!roleId
-  });
+  } = useRole(roleId);
 
-  // Fetch permissions
+  // Fetch permissions using separated hook
   const { 
     data: permissionsData, 
     isLoading: permissionsLoading, 
     error: permissionsError 
-  } = useQuery({
-    queryKey: ['permissions', 'all'],
-    queryFn: async () => {
-      const response = await fetch('/api/rbac/permissions?limit=1000');
-      if (!response.ok) throw new Error('Failed to fetch permissions');
-      return response.json();
-    },
-  });
+  } = usePermissionsList();
+
+  // Update role mutation
+  const updateRoleMutation = useUpdateRole(roleId);
 
   const role = roleData?.data;
   const permissions = permissionsData?.data || [];
   const loading = roleLoading || permissionsLoading;
 
-  // Handle form submission
+  // Handle form submission using mutation
   const handleSubmit = async (formData: EditRoleData) => {
     setSaving(true);
     
     try {
-      const response = await fetch(`/api/rbac/roles/${roleId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update role');
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        toast.success('Role updated successfully!');
-        router.push('/admin/roles');
-      } else {
-        throw new Error(result.error || 'Failed to update role');
-      }
-
+      await updateRoleMutation.mutateAsync(formData);
+      router.push('/admin/roles');
     } catch (error) {
-      console.error('Error updating role:', error);
-      toast.error('Failed to update role. Please try again.');
+      // Error handling is done in the mutation hook
     } finally {
       setSaving(false);
     }
@@ -117,7 +87,7 @@ export function useEditRolePage() {
     role,
     permissions,
     loading,
-    saving,
+    saving: saving || updateRoleMutation.isPending,
     roleError,
     permissionsError,
     roleId,
@@ -126,6 +96,10 @@ export function useEditRolePage() {
     // Actions
     handleSubmit,
     handleCancel,
-    handleBack
+    handleBack,
+    
+    // Mutation state
+    isUpdating: updateRoleMutation.isPending,
+    updateError: updateRoleMutation.error
   };
 }

@@ -16,7 +16,11 @@
     "db:backup": "node scripts/backup.mjs backup",
     "db:restore": "node scripts/backup.mjs restore",
     "rbac:sync": "tsx scripts/sync-rbac.ts",
-    "rbac:sync:cleanup": "tsx scripts/sync-rbac.ts --cleanup"
+    "rbac:sync:cleanup": "tsx scripts/sync-rbac.ts --cleanup",
+    "rbac:seed-permissions": "tsx scripts/seed-permissions.ts",
+    "rbac:assign-admin": "tsx scripts/assign-admin-role.ts",
+    "rbac:assign-superadmin": "tsx scripts/assign-superadmin-role.ts",
+    "rbac:complete-setup": "tsx scripts/complete-rbac-setup.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

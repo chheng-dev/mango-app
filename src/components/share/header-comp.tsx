@@ -6,11 +6,16 @@ import {
   Download
 } from 'lucide-react';
 
-interface RolesPageHeaderProps {
-  onAddRole: () => void;
+interface HeaderCompProps {
+  onAdd: () => void;
+  onFilter?: () => void;
+  onExport?: () => void;
+  title: string;
+  description: string;
+  btnAdd: string;
 }
 
-export function RolesPageHeader({ onAddRole }: RolesPageHeaderProps) {
+export function HeaderComp({ onAdd, onFilter, onExport, title, description, btnAdd }: HeaderCompProps) {
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -19,26 +24,26 @@ export function RolesPageHeader({ onAddRole }: RolesPageHeaderProps) {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-            Role Management
+            {title}
           </h1>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Manage roles and their permissions
+            {description}
           </p>
         </div>
       </div>
       
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={onFilter}>
           <Filter className="h-4 w-4 mr-1" />
           Filter
         </Button>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={onExport}>
           <Download className="h-4 w-4 mr-1" />
           Export
         </Button>
-        <Button onClick={onAddRole} size="sm">
+        <Button onClick={onAdd} size="sm">
           <Plus className="h-4 w-4 mr-1" />
-          Add Role
+          {btnAdd}
         </Button>
       </div>
     </div>

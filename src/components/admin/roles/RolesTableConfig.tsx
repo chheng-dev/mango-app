@@ -33,7 +33,6 @@ export function useRolesTableConfig({
   deleteLoading
 }: UseRolesTableConfigProps) {
   
-  // Define columns for the data table
   const columns: Column<Role>[] = useMemo(() => [
     {
       key: 'name',
