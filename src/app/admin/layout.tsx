@@ -34,7 +34,7 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
 
         <main className="flex-1 overflow-auto">
           <div className="h-full">
-            <div className="mx-auto max-w-7xl px-4 lg:px-6 py-8">
+            <div className="mx-auto px-4 lg:px-6 py-8">
               <div className="space-y-8">
                 {children}
               </div>

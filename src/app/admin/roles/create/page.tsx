@@ -1,23 +1,13 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { RoleForm } from '@/components/forms/RoleForm';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from '@/lib/utils/toast';
 import { PageLoading } from '@/components/ui/loading';
-import { useGlobalLoading } from '@/hooks/useGlobalLoading';
-
-interface Permission {
-  id: number;
-  name: string;
-  slug: string;
-  resource: string;
-  action: string;
-  description?: string;
-}
+import { useCreateRole } from '@/hooks/useRoles';
+import { usePermissionsListHook } from '@/hooks/usePermissionsData';
 
 interface CreateRoleData {
   name: string;
@@ -30,56 +20,32 @@ interface CreateRoleData {
 export default function CreateRolePage() {
   const router = useRouter();
   
-  // State
-  const [saving, setSaving] = useState(false);
-
-  // Fetch permissions using React Query
+  const createRoleMutation = useCreateRole();
+  
   const { 
     data: permissionsData, 
     isLoading: loading, 
     error: permissionsError 
-  } = useQuery({
-    queryKey: ['permissions', 'all'],
-    queryFn: async () => {
-      const response = await fetch('/api/rbac/permissions?limit=1000');
-      if (!response.ok) throw new Error('Failed to fetch permissions');
-      return response.json();
-    },
+  } = usePermissionsListHook({
+    sortBy: 'name',
+    sortOrder: 'asc'
   });
 
   const permissions = permissionsData?.data || [];
 
-  // Handle form submission
   const handleSubmit = async (formData: CreateRoleData) => {
-    setSaving(true);
-    
     try {
-      const response = await fetch('/api/rbac/roles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create role');
-      }
-
-      const result = await response.json();
+      const result = await createRoleMutation.mutateAsync(formData);
+      
       if (result.success) {
         toast.success('Role created successfully!');
         router.push('/admin/roles');
       } else {
         throw new Error(result.error || 'Failed to create role');
       }
-
     } catch (error) {
       console.error('Error creating role:', error);
-      toast.error('Failed to create role. Please try again.');
-    } finally {
-      setSaving(false);
+      toast.error(error instanceof Error ? error.message : 'Failed to create role. Please try again.');
     }
   };
 
@@ -135,7 +101,7 @@ export default function CreateRolePage() {
           mode="create"
           permissions={permissions}
           onSubmit={handleSubmit}
-          saving={saving}
+          saving={createRoleMutation.isPending}
           onCancel={() => router.push('/admin/roles')}
         />
       </div>

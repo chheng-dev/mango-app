@@ -4,10 +4,9 @@ import { DataTable } from '@/components/ui/data-table';
 import { Shield } from 'lucide-react';
 import { useRolesPage } from '@/hooks/useRolesPage';
 import { useRolesTableConfig } from '@/components/admin/roles/RolesTableConfig';
-import { RolesPageHeader } from '@/components/admin/roles/RolesPageHeader';
+import { HeaderComp } from '@/components/share/header-comp';
 
 export default function RolesManagementPage() {
-  // Use the separated page logic hook
   const {
     roles,
     loading,
@@ -20,7 +19,6 @@ export default function RolesManagementPage() {
     deleteLoading
   } = useRolesPage();
 
-  // Use the separated table configuration
   const { columns, rowActions } = useRolesTableConfig({
     onViewRole: handleViewRole,
     onEditRole: handleEditRole,
@@ -29,11 +27,16 @@ export default function RolesManagementPage() {
     onManagePermissions: handleManagePermissions,
     deleteLoading
   });
+  
 
   return (
     <div className="space-y-6">
-      <RolesPageHeader onAddRole={handleCreateRole} />
-
+      <HeaderComp
+        onAdd={handleCreateRole}
+        btnAdd="Add Role"
+        title="Role Management"
+        description="Manage roles and their permissions"
+      />
       <DataTable
         data={roles}
         columns={columns}
