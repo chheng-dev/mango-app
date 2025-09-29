@@ -4,7 +4,7 @@ import { roles } from '../db/schemas/roles';
 import { permissions } from '../db/schemas/permissions';
 import { rolePermissions } from '../db/schemas/role_permission';
 import { and, eq } from 'drizzle-orm';
-import { ApiResponse } from '../controllers/BaseController';
+import { ApiResponse } from '@/types/api';
 
 export class RolePermissionService {
   /**

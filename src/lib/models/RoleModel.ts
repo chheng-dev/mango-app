@@ -1,4 +1,4 @@
-import { BaseModel } from './BaseModel';
+import { BaseModel } from './baseModel';
 import { roles } from '../db/schemas/roles';
 import { permissions } from '../db/schemas/permissions';
 import { rolePermissions } from '../db/schemas/role_permission';
@@ -43,25 +43,17 @@ export interface RoleWithUsers {
   }>;
 }
 
-/**
- * RoleModel - Data Access Layer for Roles
- * 
- * Handles direct database operations for roles and role-permission relationships
- */
 export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
   protected tableName = 'roles';
   protected table = roles;
   
   constructor() {
     super(
-      [roles.name, roles.description], // searchable fields
-      ['name'] // required fields
+      [roles.name],
+      ['name']
     );
   }
 
-  /**
-   * Find role with its permissions
-   */
   async findWithPermissions(roleId: number) {
     try {
       const roleWithPermissions = await db
@@ -241,6 +233,42 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
     }
   }
 
+  async updatePermissionsForRole(roleId: number, permissionIds: number[]) {
+      try {
+      const result = await db.transaction(async (tx) => {
+        await db
+          .delete(rolePermissions)
+          .where(eq(rolePermissions.roleId, roleId));
+
+        if (permissionIds.length > 0) {
+          const rolePermissionData = permissionIds.map(permissionId => ({
+            roleId,
+            permissionId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }));
+
+          await tx
+            .insert(rolePermissions)
+            .values(rolePermissionData)
+            .onConflictDoNothing();
+        }
+      });
+
+      return {
+        success: true,
+        data: result,
+        message: 'Role permissions updated successfully'
+      };
+    } catch (error) {
+      console.error('RoleModel updatePermissionsForRole error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update role permissions'
+      };
+    }
+  }
+
   /**
    * Remove permissions from role
    */
@@ -261,7 +289,7 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
 
       return {
         success: true,
-        data: true,
+        data: result,
         message: `Permissions removed from role`
       };
     } catch (error) {

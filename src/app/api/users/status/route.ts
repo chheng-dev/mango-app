@@ -1,78 +1,50 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { userController } from '@/lib/controllers/UserController';
+import { NextRequest } from 'next/server';
+import { handleProtectedRoute, handleApiResponse } from '@/lib/utils/BaseRoute';
+import { PERMISSIONS } from '@/lib/constants/permissions';
 
-/**
- * User Status Management API Routes
- * PUT /api/users/status - Update single user status
- * PATCH /api/users/status - Bulk update user status
- */
-
-// Update single user status
-export async function PUT(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+export const PUT = handleProtectedRoute(
+  async (request: NextRequest, { auth }) => {
     const body = await request.json();
-    const { isActive } = body;
-
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
+    const url = new URL(request.url);
+    const idParam = url.searchParams.get('userId') ?? body?.userId;
+    if (!idParam) {
+      return handleApiResponse({ success: false, error: 'User ID is required' }, auth?.user?.email);
     }
 
+    const userId = Number(idParam);
+    if (Number.isNaN(userId)) {
+      return handleApiResponse({ success: false, error: 'Invalid userId parameter' }, auth?.user?.email);
+    }
+
+    const isActive = body?.isActive;
     if (typeof isActive !== 'boolean') {
-      return NextResponse.json(
-        { success: false, error: 'isActive must be a boolean value' },
-        { status: 400 }
-      );
+      return handleApiResponse({ success: false, error: 'isActive must be a boolean value' }, auth?.user?.email);
     }
 
-    const result = await userController.updateStatus(parseInt(id), isActive);
+    const result = await userController.updateStatus(userId, isActive);
+    return handleApiResponse(result, auth?.user?.email);
+  },
+  { requiredPermissions: [PERMISSIONS.USER_UPDATE] }
+);
 
-    return NextResponse.json(result, {
-      status: result.success ? 200 : 400
-    });
-  } catch (error) {
-    console.error('Update user status API error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-// Bulk update user status
-export async function PATCH(request: NextRequest) {
-  try {
+export const PATCH = handleProtectedRoute(
+  async (request: NextRequest, { auth }) => {
     const body = await request.json();
-    const { userIds, isActive } = body;
+    const userIds = body?.userIds;
+    const isActive = body?.isActive;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'userIds must be a non-empty array' },
-        { status: 400 }
-      );
+      return handleApiResponse({ success: false, error: 'userIds must be a non-empty array' }, auth?.user?.email);
     }
 
-    if (typeof isActive !== 'boolean') {
-      return NextResponse.json(
-        { success: false, error: 'isActive must be a boolean value' },
-        { status: 400 }
-      );
+    const ids = userIds.map((id: any) => Number(id)).filter((n: number) => !Number.isNaN(n));
+    if (ids.length === 0) {
+      return handleApiResponse({ success: false, error: 'No valid user ids provided' }, auth?.user?.email);
     }
 
-    const result = await userController.bulkUpdateStatus(userIds, isActive);
-
-    return NextResponse.json(result, {
-      status: result.success ? 200 : 400
-    });
-  } catch (error) {
-    console.error('Bulk update user status API error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
+    const result = await userController.bulkUpdateStatus(ids, isActive);
+    return handleApiResponse(result, auth?.user?.email);
+  },
+  { requiredPermissions: [PERMISSIONS.USER_UPDATE] }
+);

@@ -1,50 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserPermissions, getUserRoles, isSuperAdmin } from '@/lib/services/rbac-service';
+import { BaseRoute, handleProtectedRoute, handleApiResponse, createProtectedRoute } from '@/lib/utils/BaseRoute';
+import { PERMISSIONS } from '@/lib/constants/permissions';
 
-/**
- * User Permissions API Routes
- * GET /api/users/[id]/permissions - Get user permissions
- */
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const userId = parseInt(id);
-    if (isNaN(userId)) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Invalid user ID' 
-      }, { status: 400 });
-    }
-
-    // Get user permissions, roles, and super admin status
-    const [permissions, roles, userIsSuperAdmin] = await Promise.all([
-      getUserPermissions(userId),
-      getUserRoles(userId),
-      isSuperAdmin(userId)
-    ]);
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        userId,
-        permissions,
-        roles,
-        permissionsCount: permissions.length,
-        rolesCount: roles.length
-      },
-      meta: {
-        isSuperAdmin: userIsSuperAdmin
-      }
-    });
-  } catch (error) {
-    console.error('GET user permissions error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Internal server error' 
-    }, { status: 500 });
-  }
+type Params = {
+  params: { 
+    id: string;
+  };
 }
+
+export const GET = createProtectedRoute(async (request, { user, params }) => {
+  const userId = Number(params?.id);
+  
+  if (isNaN(userId) || userId <= 0) {
+    return BaseRoute.errorResponse('Invalid user ID', 400);
+  }
+
+  const [permissions, roles, userIsSuperAdmin] = await Promise.all([
+    getUserPermissions(userId),
+    getUserRoles(userId),
+    isSuperAdmin(userId)
+  ]);
+
+  const result = {
+    success: true,
+    data: {
+      userId,
+      permissions,
+      roles,
+      permissionsCount: permissions.length,
+      rolesCount: roles.length
+    },
+    meta: {
+      isSuperAdmin: userIsSuperAdmin
+    }
+  };
+
+  return handleApiResponse(result, user?.email);
+}, {
+  requiredPermissions: [PERMISSIONS.USER_READ]
+});

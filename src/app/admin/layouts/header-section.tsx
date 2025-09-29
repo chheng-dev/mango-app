@@ -1,5 +1,4 @@
 "use client";
-import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -64,7 +63,6 @@ export default function HeaderSection() {
   };
 
   const breadcrumbs = getBreadcrumbs();
-  const currentPage = breadcrumbs[breadcrumbs.length - 1];
 
   return (
     <header className="flex items-center justify-between h-16 bg-background border-b border-border">

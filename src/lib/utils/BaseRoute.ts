@@ -1,7 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiResponse } from '@/lib/controllers/BaseController';
 import { AuthMiddleware } from '@/lib/middleware/AuthMiddleware';
 import { AuthContext } from '@/lib/types/auth';
+import { ApiResponse } from '@/types/api';
+
+/**
+ * Route authentication options
+ */
+export interface RouteAuthOptions {
+  requireAuth?: boolean;
+  requiredPermissions?: string[];
+  requiredRoles?: string[];
+  requireAllPermissions?: boolean;
+  requireAllRoles?: boolean;
+  allowSelf?: boolean;
+}
+
+/**
+ * Authentication result interface
+ */
+export interface AuthResult {
+  success: boolean;
+  auth?: AuthContext;
+  error?: any;
+  status?: number;
+}
 
 /**
  * Standard HTTP status codes for consistent API responses
@@ -19,425 +41,18 @@ export const HTTP_STATUS = {
 } as const;
 
 /**
- * Base route handler for consistent API responses and error handling
+ * Base route handler focused on authentication and authorization
  */
 export class BaseRoute {
-  
-  /**
-   * Handle GET request for single entity by ID
-   */
-  static async handleGetById<T>(
-    params: { id: string } | Promise<{ id: string }>,
-    getByIdFn: (id: number) => Promise<ApiResponse<T>>,
-    entityName: string = 'Entity'
-  ): Promise<NextResponse> {
-    try {
-      // Await params if it's a Promise (Next.js 15)
-      const resolvedParams = await params;
-      const id = Number(resolvedParams.id);
-      
-      if (isNaN(id) || id <= 0) {
-        return this.errorResponse(`Invalid ${entityName.toLowerCase()} ID`, HTTP_STATUS.BAD_REQUEST);
-      }
-
-      const result = await getByIdFn(id);
-      
-      return this.successResponse(result, {
-        successStatus: HTTP_STATUS.OK,
-        errorStatus: HTTP_STATUS.NOT_FOUND
-      });
-    } catch (error) {
-      console.error(`GET ${entityName} by ID error:`, error);
-      return this.internalServerError();
-    }
-  }
 
   /**
-   * Handle PUT request for updating entity by ID
+   * Main authentication and authorization method
+   * Returns authenticated context or error response
    */
-  static async handleUpdateById<T>(
+  static async authenticate(
     request: NextRequest,
-    params: { id: string } | Promise<{ id: string }>,
-    updateFn: (id: number, data: any) => Promise<ApiResponse<T>>,
-    entityName: string = 'Entity'
-  ): Promise<NextResponse> {
-    try {
-      // Await params if it's a Promise (Next.js 15)
-      const resolvedParams = await params;
-      const id = Number(resolvedParams.id);
-      
-      if (isNaN(id) || id <= 0) {
-        return this.errorResponse(`Invalid ${entityName.toLowerCase()} ID`, HTTP_STATUS.BAD_REQUEST);
-      }
-
-      let body;
-      try {
-        body = await request.json();
-      } catch (error) {
-        return this.errorResponse('Invalid JSON in request body', HTTP_STATUS.BAD_REQUEST);
-      }
-
-      if (!body || typeof body !== 'object') {
-        return this.errorResponse('Request body is required', HTTP_STATUS.BAD_REQUEST);
-      }
-
-      const result = await updateFn(id, body);
-      
-      return this.successResponse(result, {
-        successStatus: HTTP_STATUS.OK,
-        errorStatus: HTTP_STATUS.BAD_REQUEST
-      });
-    } catch (error) {
-      console.error(`PUT ${entityName} error:`, error);
-      return this.internalServerError();
-    }
-  }
-
-  /**
-   * Handle DELETE request for entity by ID
-   */
-  static async handleDeleteById<T>(
-    params: { id: string } | Promise<{ id: string }>,
-    deleteFn: (id: number) => Promise<ApiResponse<T>>,
-    entityName: string = 'Entity'
-  ): Promise<NextResponse> {
-    try {
-      // Await params if it's a Promise (Next.js 15)
-      const resolvedParams = await params;
-      const id = Number(resolvedParams.id);
-      
-      if (isNaN(id) || id <= 0) {
-        return this.errorResponse(`Invalid ${entityName.toLowerCase()} ID`, HTTP_STATUS.BAD_REQUEST);
-      }
-
-      const result = await deleteFn(id);
-      
-      return this.successResponse(result, {
-        successStatus: HTTP_STATUS.OK,
-        errorStatus: HTTP_STATUS.BAD_REQUEST
-      });
-    } catch (error) {
-      console.error(`DELETE ${entityName} error:`, error);
-      return this.internalServerError();
-    }
-  }
-
-  /**
-   * Handle GET request for collection with query parameters
-   */
-  static async handleGetCollection<T>(
-    request: NextRequest,
-    getCollectionFn: (params: any) => Promise<ApiResponse<T[]>>,
-    entityName: string = 'Entities'
-  ): Promise<NextResponse> {
-    try {
-      const { searchParams } = new URL(request.url);
-      
-      const params = {
-        page: parseInt(searchParams.get('page') || '1'),
-        limit: parseInt(searchParams.get('limit') || '10'),
-        query: searchParams.get('query') || undefined,
-        sortBy: searchParams.get('sortBy') || undefined,
-        sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc',
-        // Add any additional common parameters here
-      };
-
-      // Validate pagination parameters
-      if (params.page < 1) params.page = 1;
-      if (params.limit < 1 || params.limit > 100) params.limit = 10;
-
-      const result = await getCollectionFn(params);
-      
-      return this.successResponse(result, {
-        successStatus: HTTP_STATUS.OK,
-        errorStatus: HTTP_STATUS.BAD_REQUEST
-      });
-    } catch (error) {
-      console.error(`GET ${entityName} collection error:`, error);
-      return this.internalServerError();
-    }
-  }
-
-  /**
-   * Handle POST request for creating new entity
-   */
-  static async handleCreate<T>(
-    request: NextRequest,
-    createFn: (data: any) => Promise<ApiResponse<T>>,
-    entityName: string = 'Entity'
-  ): Promise<NextResponse> {
-    try {
-      let body;
-      try {
-        body = await request.json();
-      } catch (error) {
-        return this.errorResponse('Invalid JSON in request body', HTTP_STATUS.BAD_REQUEST);
-      }
-
-      if (!body || typeof body !== 'object') {
-        return this.errorResponse('Request body is required', HTTP_STATUS.BAD_REQUEST);
-      }
-
-      const result = await createFn(body);
-      
-      return this.successResponse(result, {
-        successStatus: HTTP_STATUS.CREATED,
-        errorStatus: HTTP_STATUS.BAD_REQUEST
-      });
-    } catch (error) {
-      console.error(`POST ${entityName} error:`, error);
-      return this.internalServerError();
-    }
-  }
-
-  /**
-   * Handle authenticated GET request for single entity by ID
-   */
-  static async handleAuthenticatedGetById<T>(
-    request: NextRequest,
-    params: { id: string } | Promise<{ id: string }>,
-    getByIdFn: (id: number, auth?: AuthContext) => Promise<ApiResponse<T>>,
-    entityName: string = 'Entity',
     authOptions: RouteAuthOptions = { requireAuth: true }
-  ): Promise<NextResponse> {
-    try {
-      // Authenticate request
-      const authResult = await this.authenticateRequest(request, authOptions);
-      if (!authResult.success) {
-        return authResult.response || this.errorResponse('Authentication failed', HTTP_STATUS.UNAUTHORIZED);
-      }
-
-      // Await params if it's a Promise (Next.js 15)
-      const resolvedParams = await params;
-      const id = Number(resolvedParams.id);
-      
-      if (isNaN(id) || id <= 0) {
-        return this.errorResponse(`Invalid ${entityName.toLowerCase()} ID`, HTTP_STATUS.BAD_REQUEST);
-      }
-
-      // Check if user can access this specific resource
-      if (authOptions.allowSelf && authResult.auth) {
-        const canAccessSelf = await this.checkSelfAccess(authResult.auth, id, entityName);
-        if (!canAccessSelf.allowed && !authResult.hasRequiredPermissions) {
-          return this.errorResponse(
-            canAccessSelf.reason || `Access denied to ${entityName.toLowerCase()}`,
-            HTTP_STATUS.FORBIDDEN
-          );
-        }
-      }
-
-      const result = await getByIdFn(id, authResult.auth);
-      
-      return this.successResponse(result, {
-        successStatus: HTTP_STATUS.OK,
-        errorStatus: HTTP_STATUS.NOT_FOUND
-      });
-    } catch (error) {
-      console.error(`Authenticated GET ${entityName} by ID error:`, error);
-      return this.internalServerError();
-    }
-  }
-
-  /**
-   * Handle authenticated PUT request for updating entity by ID
-   */
-  static async handleAuthenticatedUpdateById<T>(
-    request: NextRequest,
-    params: { id: string } | Promise<{ id: string }>,
-    updateFn: (id: number, data: any, auth?: AuthContext) => Promise<ApiResponse<T>>,
-    entityName: string = 'Entity',
-    authOptions: RouteAuthOptions = { requireAuth: true }
-  ): Promise<NextResponse> {
-    try {
-      // Authenticate request
-      const authResult = await this.authenticateRequest(request, authOptions);
-      if (!authResult.success) {
-        return authResult.response || this.errorResponse('Authentication failed', HTTP_STATUS.UNAUTHORIZED);
-      }
-
-      // Await params if it's a Promise (Next.js 15)
-      const resolvedParams = await params;
-      const id = Number(resolvedParams.id);
-      
-      if (isNaN(id) || id <= 0) {
-        return this.errorResponse(`Invalid ${entityName.toLowerCase()} ID`, HTTP_STATUS.BAD_REQUEST);
-      }
-
-      let body;
-      try {
-        body = await request.json();
-      } catch (error) {
-        return this.errorResponse('Invalid JSON in request body', HTTP_STATUS.BAD_REQUEST);
-      }
-
-      if (!body || typeof body !== 'object') {
-        return this.errorResponse('Request body is required', HTTP_STATUS.BAD_REQUEST);
-      }
-
-      // Check if user can modify this specific resource
-      if (authOptions.allowSelf && authResult.auth) {
-        const canAccessSelf = await this.checkSelfAccess(authResult.auth, id, entityName);
-        if (!canAccessSelf.allowed && !authResult.hasRequiredPermissions) {
-          return this.errorResponse(
-            canAccessSelf.reason || `Access denied to modify ${entityName.toLowerCase()}`,
-            HTTP_STATUS.FORBIDDEN
-          );
-        }
-      }
-
-      const result = await updateFn(id, body, authResult.auth);
-      
-      return this.successResponse(result, {
-        successStatus: HTTP_STATUS.OK,
-        errorStatus: HTTP_STATUS.BAD_REQUEST
-      });
-    } catch (error) {
-      console.error(`Authenticated PUT ${entityName} error:`, error);
-      return this.internalServerError();
-    }
-  }
-
-  /**
-   * Handle authenticated DELETE request for entity by ID
-   */
-  static async handleAuthenticatedDeleteById<T>(
-    request: NextRequest,
-    params: { id: string } | Promise<{ id: string }>,
-    deleteFn: (id: number, auth?: AuthContext) => Promise<ApiResponse<T>>,
-    entityName: string = 'Entity',
-    authOptions: RouteAuthOptions = { requireAuth: true }
-  ): Promise<NextResponse> {
-    try {
-      // Authenticate request
-      const authResult = await this.authenticateRequest(request, authOptions);
-      if (!authResult.success) {
-        return authResult.response || this.errorResponse('Authentication failed', HTTP_STATUS.UNAUTHORIZED);
-      }
-
-      // Await params if it's a Promise (Next.js 15)
-      const resolvedParams = await params;
-      const id = Number(resolvedParams.id);
-      
-      if (isNaN(id) || id <= 0) {
-        return this.errorResponse(`Invalid ${entityName.toLowerCase()} ID`, HTTP_STATUS.BAD_REQUEST);
-      }
-
-      // Check if user can delete this specific resource
-      if (authOptions.allowSelf && authResult.auth) {
-        const canAccessSelf = await this.checkSelfAccess(authResult.auth, id, entityName);
-        if (!canAccessSelf.allowed && !authResult.hasRequiredPermissions) {
-          return this.errorResponse(
-            canAccessSelf.reason || `Access denied to delete ${entityName.toLowerCase()}`,
-            HTTP_STATUS.FORBIDDEN
-          );
-        }
-      }
-
-      const result = await deleteFn(id, authResult.auth);
-      
-      return this.successResponse(result, {
-        successStatus: HTTP_STATUS.OK,
-        errorStatus: HTTP_STATUS.BAD_REQUEST
-      });
-    } catch (error) {
-      console.error(`Authenticated DELETE ${entityName} error:`, error);
-      return this.internalServerError();
-    }
-  }
-
-  /**
-   * Handle authenticated GET request for collection
-   */
-  static async handleAuthenticatedGetCollection<T>(
-    request: NextRequest,
-    getCollectionFn: (params: any, auth?: AuthContext) => Promise<ApiResponse<T[]>>,
-    entityName: string = 'Entities',
-    authOptions: RouteAuthOptions = { requireAuth: true }
-  ): Promise<NextResponse> {
-    try {
-      // Authenticate request
-      const authResult = await this.authenticateRequest(request, authOptions);
-      if (!authResult.success) {
-        return authResult.response || this.errorResponse('Authentication failed', HTTP_STATUS.UNAUTHORIZED);
-      }
-
-      const { searchParams } = new URL(request.url);
-      
-      const params = {
-        page: parseInt(searchParams.get('page') || '1'),
-        limit: parseInt(searchParams.get('limit') || '10'),
-        query: searchParams.get('query') || undefined,
-        sortBy: searchParams.get('sortBy') || undefined,
-        sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc',
-      };
-
-      // Validate pagination parameters
-      if (params.page < 1) params.page = 1;
-      if (params.limit < 1 || params.limit > 100) params.limit = 10;
-
-      const result = await getCollectionFn(params, authResult.auth);
-      
-      return this.successResponse(result, {
-        successStatus: HTTP_STATUS.OK,
-        errorStatus: HTTP_STATUS.BAD_REQUEST
-      });
-    } catch (error) {
-      console.error(`Authenticated GET ${entityName} collection error:`, error);
-      return this.internalServerError();
-    }
-  }
-
-  /**
-   * Handle authenticated POST request for creating new entity
-   */
-  static async handleAuthenticatedCreate<T>(
-    request: NextRequest,
-    createFn: (data: any, auth?: AuthContext) => Promise<ApiResponse<T>>,
-    entityName: string = 'Entity',
-    authOptions: RouteAuthOptions = { requireAuth: true }
-  ): Promise<NextResponse> {
-    try {
-      // Authenticate request
-      const authResult = await this.authenticateRequest(request, authOptions);
-      if (!authResult.success) {
-        return authResult.response || this.errorResponse('Authentication failed', HTTP_STATUS.UNAUTHORIZED);
-      }
-
-      let body;
-      try {
-        body = await request.json();
-      } catch (error) {
-        return this.errorResponse('Invalid JSON in request body', HTTP_STATUS.BAD_REQUEST);
-      }
-
-      if (!body || typeof body !== 'object') {
-        return this.errorResponse('Request body is required', HTTP_STATUS.BAD_REQUEST);
-      }
-
-      const result = await createFn(body, authResult.auth);
-      
-      return this.successResponse(result, {
-        successStatus: HTTP_STATUS.CREATED,
-        errorStatus: HTTP_STATUS.BAD_REQUEST
-      });
-    } catch (error) {
-      console.error(`Authenticated POST ${entityName} error:`, error);
-      return this.internalServerError();
-    }
-  }
-
-  /**
-   * Authenticate request and check permissions
-   */
-  static async authenticateRequest(
-    request: NextRequest,
-    authOptions: RouteAuthOptions
-  ): Promise<{
-    success: boolean;
-    response?: NextResponse;
-    auth?: AuthContext;
-    hasRequiredPermissions?: boolean;
-  }> {
+  ): Promise<AuthResult> {
     try {
       // Skip authentication if not required
       if (!authOptions.requireAuth) {
@@ -449,17 +64,15 @@ export class BaseRoute {
       if (!authResult.authenticated || !authResult.context) {
         return {
           success: false,
-          response: NextResponse.json(
-            authResult.error || { success: false, error: 'Authentication required' },
-            { status: HTTP_STATUS.UNAUTHORIZED }
-          )
+          error: authResult.error || { success: false, error: 'Authentication required' },
+          status: HTTP_STATUS.UNAUTHORIZED
         };
       }
 
       const auth = authResult.context;
 
       // Check required permissions
-      if (authOptions.requiredPermissions && authOptions.requiredPermissions.length > 0) {
+      if (authOptions.requiredPermissions?.length) {
         const permissionCheck = AuthMiddleware.checkPermissions(
           auth,
           authOptions.requiredPermissions,
@@ -469,16 +82,14 @@ export class BaseRoute {
         if (!permissionCheck.authorized) {
           return {
             success: false,
-            response: NextResponse.json(
-              permissionCheck.error || { success: false, error: 'Insufficient permissions' },
-              { status: HTTP_STATUS.FORBIDDEN }
-            )
+            error: permissionCheck.error || { success: false, error: 'Insufficient permissions' },
+            status: HTTP_STATUS.FORBIDDEN
           };
         }
       }
 
       // Check required roles
-      if (authOptions.requiredRoles && authOptions.requiredRoles.length > 0) {
+      if (authOptions.requiredRoles?.length) {
         const roleCheck = AuthMiddleware.checkRoles(
           auth,
           authOptions.requiredRoles,
@@ -488,83 +99,24 @@ export class BaseRoute {
         if (!roleCheck.authorized) {
           return {
             success: false,
-            response: NextResponse.json(
-              roleCheck.error || { success: false, error: 'Insufficient roles' },
-              { status: HTTP_STATUS.FORBIDDEN }
-            )
+            error: roleCheck.error || { success: false, error: 'Insufficient roles' },
+            status: HTTP_STATUS.FORBIDDEN
           };
         }
       }
 
-      return {
-        success: true,
-        auth,
-        hasRequiredPermissions: true
-      };
+      return { success: true, auth };
     } catch (error) {
-      console.error('Authentication request error:', error);
+      console.error('Authentication error:', error);
       return {
         success: false,
-        response: this.internalServerError('Authentication failed')
+        error: { success: false, error: 'Authentication failed' },
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR
       };
     }
   }
 
-  /**
-   * Check if user can access their own data
-   */
-  static async checkSelfAccess(
-    auth: AuthContext,
-    resourceId: number,
-    entityName: string
-  ): Promise<{ allowed: boolean; reason?: string }> {
-    try {
-      // For user entities, check if the resource ID matches the user ID
-      if (entityName.toLowerCase() === 'user') {
-        if (auth.user.id === resourceId) {
-          return { allowed: true };
-        }
-        return { 
-          allowed: false, 
-          reason: 'You can only access your own user data' 
-        };
-      }
 
-      // For other entities, you might want to check ownership
-      // This would require additional logic based on your data model
-      // For now, we'll return false for non-user entities
-      return { 
-        allowed: false, 
-        reason: `Self-access not applicable for ${entityName}` 
-      };
-    } catch (error) {
-      console.error('Self access check error:', error);
-      return { 
-        allowed: false, 
-        reason: 'Failed to verify access permissions' 
-      };
-    }
-  }
-
-  /**
-   * Create success response based on ApiResponse
-   */
-  static successResponse<T>(
-    result: ApiResponse<T>,
-    options: {
-      successStatus?: number;
-      errorStatus?: number;
-    } = {}
-  ): NextResponse {
-    const {
-      successStatus = HTTP_STATUS.OK,
-      errorStatus = HTTP_STATUS.BAD_REQUEST
-    } = options;
-
-    return NextResponse.json(result, {
-      status: result.success ? successStatus : errorStatus
-    });
-  }
 
   /**
    * Create error response
@@ -587,62 +139,189 @@ export class BaseRoute {
   }
 
   /**
-   * Validate ID parameter
+   * Handle database errors and return user-friendly messages
    */
-  static validateId(id: string, entityName: string = 'Entity'): { valid: boolean; id?: number; error?: NextResponse } {
-    const parsedId = Number(id);
-    
-    if (isNaN(parsedId) || parsedId <= 0) {
-      return {
-        valid: false,
-        error: this.errorResponse(`Invalid ${entityName.toLowerCase()} ID`, HTTP_STATUS.BAD_REQUEST)
+  static handleDatabaseError(error: any): { message: string; details?: string } {
+    if (!error) {
+      return { message: 'Unknown database error occurred' };
+    }
+
+    const errorMessage = error.message || error.toString();
+
+    // Handle unique constraint violations (PostgreSQL and SQLite patterns)
+    if (errorMessage.includes('duplicate key value violates unique constraint') || 
+        errorMessage.includes('UNIQUE constraint failed') ||
+        errorMessage.includes('violates unique constraint')) {
+      
+      // Check for specific fields
+      if (errorMessage.includes('email') || errorMessage.includes('users_email')) {
+        return { message: 'Email address already exists' };
+      }
+      if (errorMessage.includes('slug') || errorMessage.includes('_slug_')) {
+        return { message: 'Slug already exists' };
+      }
+      if (errorMessage.includes('name') || errorMessage.includes('_name_')) {
+        return { message: 'Name already exists' };
+      }
+      if (errorMessage.includes('phone') || errorMessage.includes('phone_number')) {
+        return { message: 'Phone number already exists' };
+      }
+      if (errorMessage.includes('code') || errorMessage.includes('_code_')) {
+        return { message: 'Code already exists' };
+      }
+      
+      return { message: 'This record already exists' };
+    }
+
+    // Handle foreign key constraint violations
+    if (errorMessage.includes('foreign key constraint') || 
+        errorMessage.includes('FOREIGN KEY constraint failed') ||
+        errorMessage.includes('violates foreign key constraint')) {
+      return { message: 'Cannot perform this action due to related data' };
+    }
+
+    // Handle NOT NULL constraint violations
+    if (errorMessage.includes('not null constraint') || 
+        errorMessage.includes('NOT NULL constraint failed') ||
+        errorMessage.includes('violates not-null constraint')) {
+      const field = this.extractFieldFromError(errorMessage);
+      return { message: `${field || 'Required field'} cannot be empty` };
+    }
+
+    // Handle check constraint violations
+    if (errorMessage.includes('check constraint') || 
+        errorMessage.includes('CHECK constraint failed')) {
+      return { message: 'Invalid data format or value' };
+    }
+
+    // Handle connection errors
+    if (errorMessage.includes('connect') || errorMessage.includes('connection')) {
+      return { message: 'Database connection error' };
+    }
+
+    // Handle timeout errors
+    if (errorMessage.includes('timeout')) {
+      return { message: 'Database operation timed out' };
+    }
+
+    // Handle SQL syntax and generic database errors
+    if (this.isDatabaseError(errorMessage)) {
+      const cleanMessage = this.extractCleanErrorMessage(errorMessage);
+      return { 
+        message: 'Database operation failed',
+        details: process.env.NODE_ENV === 'development' ? cleanMessage : undefined
       };
     }
 
-    return { valid: true, id: parsedId };
+    // Return original message for development, generic for production
+    return {
+      message: process.env.NODE_ENV === 'development' 
+        ? errorMessage 
+        : 'An error occurred while processing your request'
+    };
   }
 
   /**
-   * Validate and parse JSON body
+   * Check if error is a database-related error
    */
-  static async validateJsonBody(request: NextRequest): Promise<{ valid: boolean; data?: any; error?: NextResponse }> {
-    try {
-      const body = await request.json();
-      
-      if (!body || typeof body !== 'object') {
-        return {
-          valid: false,
-          error: this.errorResponse('Request body is required', HTTP_STATUS.BAD_REQUEST)
-        };
-      }
+  private static isDatabaseError(errorMessage: string): boolean {
+    const dbErrorPatterns = [
+      'Failed query:',
+      'insert into',
+      'update.*set',
+      'delete from',
+      'select.*from',
+      'relation.*does not exist',
+      'column.*does not exist',
+      'syntax error',
+      'invalid input syntax',
+      'permission denied for',
+      'pg_',
+      'postgres',
+      'sqlite',
+      'mysql'
+    ];
 
-      return { valid: true, data: body };
-    } catch (error) {
-      return {
-        valid: false,
-        error: this.errorResponse('Invalid JSON in request body', HTTP_STATUS.BAD_REQUEST)
-      };
-    }
+    return dbErrorPatterns.some(pattern => 
+      errorMessage.toLowerCase().includes(pattern.toLowerCase())
+    );
   }
-}
 
-/**
- * Authentication and authorization options for routes
- */
-export interface RouteAuthOptions {
-  requireAuth?: boolean;
-  requiredPermissions?: string[];
-  requiredRoles?: string[];
-  requireAllPermissions?: boolean;
-  requireAllRoles?: boolean;
-  allowSelf?: boolean; // Allow user to access their own data
-}
+  /**
+   * Extract field name from error message
+   */
+  private static extractFieldFromError(errorMessage: string): string | null {
+    // Try to extract field name from common error patterns
+    const patterns = [
+      /column "(\w+)"/i,
+      /field (\w+)/i,
+      /constraint.*"(\w+)"/i,
+      /"(\w+)" cannot be null/i
+    ];
 
-/**
- * Extended route context with authentication
- */
-export interface AuthenticatedRouteContext extends RouteContext {
-  auth?: AuthContext;
+    for (const pattern of patterns) {
+      const match = errorMessage.match(pattern);
+      if (match) {
+        // Convert snake_case to Title Case
+        return match[1].replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract clean error message from verbose database errors
+   */
+  private static extractCleanErrorMessage(errorMessage: string): string {
+    let cleaned = errorMessage;
+    
+    // Remove common prefixes
+    cleaned = cleaned.replace(/^Failed query:\s*/i, '');
+    cleaned = cleaned.replace(/^Error:\s*/i, '');
+    cleaned = cleaned.replace(/^Database error:\s*/i, '');
+    
+    // Remove SQL parameters section if present
+    cleaned = cleaned.replace(/\nparams:[\s\S]*$/, '');
+    cleaned = cleaned.replace(/\s*\nparams:.*$/, '');
+    
+    // Remove stack traces
+    cleaned = cleaned.replace(/\s*at\s+[\s\S]*$/, '');
+    
+    // If it's a SQL query, try to extract just the operation type
+    if (cleaned.toLowerCase().includes('insert into')) {
+      return 'Failed to create record - data may already exist';
+    }
+    if (cleaned.toLowerCase().includes('update') && cleaned.toLowerCase().includes('set')) {
+      return 'Failed to update record';
+    }
+    if (cleaned.toLowerCase().includes('delete from')) {
+      return 'Failed to delete record - it may be referenced by other data';
+    }
+    if (cleaned.toLowerCase().includes('select') && cleaned.toLowerCase().includes('from')) {
+      return 'Failed to retrieve data';
+    }
+    
+    // Truncate very long messages
+    if (cleaned.length > 150) {
+      cleaned = cleaned.substring(0, 150) + '...';
+    }
+
+    return cleaned || 'Database operation failed';
+  }
+
+  /**
+   * Create error response with database error handling
+   */
+  static databaseErrorResponse(error: any, customMessage?: string): NextResponse {
+    const { message, details } = this.handleDatabaseError(error);
+    
+    return NextResponse.json({
+      success: false,
+      error: customMessage || message,
+      ...(details && { details })
+    }, { status: HTTP_STATUS.BAD_REQUEST });
+  }
 }
 
 /**
@@ -663,19 +342,205 @@ export function withErrorHandling(
 }
 
 /**
- * Type for route handler context
+ * Create a protected route handler compatible with Next.js 15
  */
-export interface RouteContext {
-  params: Record<string, string>;
+export function createProtectedRoute(
+  handler: (
+    request: NextRequest,
+    context: { 
+      auth: AuthContext;
+      user: AuthContext['user'];
+      params: any;
+    }
+  ) => Promise<NextResponse>,
+  options: {
+    requirePermission?: { action: string; resource: string };
+    requiredPermissions?: string[];
+    requiredRoles?: string[];
+    requireAllPermissions?: boolean;
+    requireAllRoles?: boolean;
+  } = {}
+) {
+  return async (
+    request: NextRequest, 
+    context: { params: Promise<any> }
+  ): Promise<NextResponse> => {
+    try {
+      // Build auth options
+      const authOptions: RouteAuthOptions = {
+        requireAuth: true,
+        requiredPermissions: options.requiredPermissions || 
+          (options.requirePermission ? [`${options.requirePermission.resource}:${options.requirePermission.action}`] : undefined),
+        requiredRoles: options.requiredRoles,
+        requireAllPermissions: options.requireAllPermissions,
+        requireAllRoles: options.requireAllRoles
+      };
+
+      // Authenticate
+      const authResult = await BaseRoute.authenticate(request, authOptions);
+      
+      if (!authResult.success) {
+        return NextResponse.json(authResult.error, { status: authResult.status });
+      }
+
+      // Resolve params if they're a Promise (Next.js 15)
+      const params = await context.params;
+
+      // Call handler with authenticated context
+      return await handler(request, { 
+        auth: authResult.auth!, 
+        user: authResult.auth!.user,
+        params 
+      });
+
+    } catch (error) {
+      console.error('Protected route error:', error);
+      
+      // Check if it's a database error
+      if (error && (
+        (typeof error === 'object' && 'message' in error) ||
+        (typeof error === 'string' && error.includes('Failed query:'))
+      )) {
+        return BaseRoute.databaseErrorResponse(error);
+      }
+      
+      return BaseRoute.internalServerError('Request failed');
+    }
+  };
 }
 
 /**
- * Type for collection query parameters
+ * Legacy handleProtectedRoute for routes without params
  */
-export interface CollectionParams {
-  page?: number;
-  limit?: number;
-  query?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+export const handleProtectedRoute = (
+  handler: (
+    request: NextRequest, 
+    context: { 
+      auth: AuthContext;
+      user: AuthContext['user'];
+    }
+  ) => Promise<NextResponse>,
+  options: {
+    requirePermission?: { action: string; resource: string };
+    requiredPermissions?: string[];
+    requiredRoles?: string[];
+    requireAllPermissions?: boolean;
+    requireAllRoles?: boolean;
+  } = {}
+) => {
+  return async (request: NextRequest) => {
+    try {
+      // Build auth options
+      const authOptions: RouteAuthOptions = {
+        requireAuth: true,
+        requiredPermissions: options.requiredPermissions || 
+          (options.requirePermission ? [`${options.requirePermission.resource}:${options.requirePermission.action}`] : undefined),
+        requiredRoles: options.requiredRoles,
+        requireAllPermissions: options.requireAllPermissions,
+        requireAllRoles: options.requireAllRoles
+      };
+
+      // Authenticate
+      const authResult = await BaseRoute.authenticate(request, authOptions);
+      
+      if (!authResult.success) {
+        return NextResponse.json(authResult.error, { status: authResult.status });
+      }
+
+      // Call handler with authenticated context
+      return await handler(request, { 
+        auth: authResult.auth!, 
+        user: authResult.auth!.user
+      });
+
+    } catch (error) {
+      console.error('Protected route error:', error);
+      
+      // Check if it's a database error
+      if (error && (
+        (typeof error === 'object' && 'message' in error) ||
+        (typeof error === 'string' && error.includes('Failed query:'))
+      )) {
+        return BaseRoute.databaseErrorResponse(error);
+      }
+      
+      return BaseRoute.internalServerError('Request failed');
+    }
+  };
+};
+
+export async function parseRequestBody(req: NextRequest): Promise<any> {
+  const contentType = (req.headers.get('content-type') || '').toLowerCase();
+
+  if (!contentType) {
+    try { return await req.json(); } catch { return {}; }
+  }
+
+  if (contentType.includes('application/json')) {
+    try { return await req.json(); } catch { return {}; }
+  }
+
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    const text = await req.text();
+    const params = new URLSearchParams(text);
+    const out: Record<string, any> = {};
+    params.forEach((v, k) => {
+      try { out[k] = JSON.parse(v); } catch { out[k] = v; }
+    });
+    return out;
+  }
+
+  if (contentType.includes('multipart/form-data')) {
+    const fd = await req.formData();
+    const out: Record<string, any> = {};
+    for (const [k, v] of fd.entries()) {
+      if (typeof v === 'string') {
+        try { out[k] = JSON.parse(v); } catch { out[k] = v; }
+      } else {
+        out[k] = v; // File object
+      }
+    }
+    return out;
+  }
+
+  // fallback: try json then text
+  try { return await req.json(); } catch {
+    try {
+      const txt = await req.text();
+      if (!txt) return {};
+      try { return JSON.parse(txt); } catch {
+        const params = new URLSearchParams(txt);
+        if ([...params.keys()].length) {
+          const o: Record<string, any> = {};
+          params.forEach((v, k) => { o[k] = v; });
+          return o;
+        }
+        return { raw: txt };
+      }
+    } catch { return {}; }
+  }
 }
+
+
+/**
+ * Handle API response consistently
+ */
+export const handleApiResponse = (result: any, userEmail?: string) => {
+  if (userEmail) {
+    console.log(`API Response for ${userEmail}:`, result.success ? 'Success' : 'Failed');
+  }
+
+  // If the result contains a database error, clean it up
+  if (!result.success && result.error) {
+    const { message, details } = BaseRoute.handleDatabaseError(result.error);
+    result = {
+      ...result,
+      error: message,
+      ...(details && { details })
+    };
+  }
+  
+  return NextResponse.json(result, { 
+    status: result.success ? 200 : 400 
+  });
+};

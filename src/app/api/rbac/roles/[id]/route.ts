@@ -1,55 +1,43 @@
 import { roleController } from "@/lib/controllers/RoleController";
-import { NextRequest } from "next/server";
-import { BaseRoute, withErrorHandling } from "@/lib/utils/BaseRoute";
+import { BaseRoute, createProtectedRoute, handleApiResponse, handleProtectedRoute } from "@/lib/utils/BaseRoute";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 
-export const GET = withErrorHandling(async (
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) => {
-  return BaseRoute.handleAuthenticatedGetById(
-    request,
-    params,
-    (id, auth) => roleController.getRoleWithPermissions(id),
-    'Role',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.ROLE_READ],
-      allowSelf: false
-    }
-  );
-}, 'GET Role');
+type Params = {
+  params: {
+    id: string;
+  };
+}
 
-export const PUT = withErrorHandling(async (
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) => {
-  return BaseRoute.handleAuthenticatedUpdateById(
-    request,
-    params,
-    (id, data, auth) => roleController.update(id, data),
-    'Role',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.ROLE_UPDATE],
-      allowSelf: false
-    }
-  );
-}, 'PUT Role');
+export const GET  = createProtectedRoute(async (request, { user, params }) => {
+  const roleId = Number(params?.id);
+  
+  if (isNaN(roleId) || roleId <= 0) {
+    return BaseRoute.errorResponse('Invalid role ID', 400);
+  }
 
-export const DELETE = withErrorHandling(async (
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) => {
-  return BaseRoute.handleAuthenticatedDeleteById(
-    request,
-    params,
-    (id, auth) => roleController.delete(id),
-    'Role',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.ROLE_DELETE],
-      allowSelf: false
-    }
-  );
-}, 'DELETE Role');
+  const result = await roleController.getById(roleId);
+  return handleApiResponse(result, user?.email);
+}, { requiredPermissions: [PERMISSIONS.ROLE_READ] });
+
+export const PUT = createProtectedRoute(async (request, { user, params }) => {
+  const roleId = Number(params?.id);
+  
+  if (isNaN(roleId) || roleId <= 0) {
+    return BaseRoute.errorResponse('Invalid role ID', 400);
+  }
+
+  const data = await request.json();
+  const result = await roleController.update(roleId, data);
+  return handleApiResponse(result, user?.email);
+}, { requiredPermissions: [PERMISSIONS.ROLE_UPDATE] });
+
+export const DELETE = createProtectedRoute(async (request, { user, params }) => {
+  const roleId = Number(params?.id);
+  
+  if (isNaN(roleId) || roleId <= 0) {
+    return BaseRoute.errorResponse('Invalid role ID', 400);
+  }
+
+  const result = await roleController.delete(roleId);
+  return handleApiResponse(result, user?.email);
+}, { requiredPermissions: [PERMISSIONS.ROLE_DELETE] });

@@ -1,55 +1,61 @@
 import { userController } from '@/lib/controllers/UserController';
 import { NextRequest } from "next/server";
-import { BaseRoute, withErrorHandling } from "@/lib/utils/BaseRoute";
+import { BaseRoute, handleProtectedRoute, handleApiResponse } from "@/lib/utils/BaseRoute";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 
-export const GET = withErrorHandling(async (
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) => {
-  return BaseRoute.handleAuthenticatedGetById(
-    request,
-    params,
-    (id, auth) => userController.getById(id),
-    'User',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.USER_READ],
-      allowSelf: true // Users can access their own data
-    }
-  );
-}, 'GET User');
+export const GET = handleProtectedRoute(async (request: NextRequest, { auth }) => {
+  const url = new URL(request.url);
+  const id = url.pathname.split('/').pop();
+  
+  if (!id || isNaN(Number(id))) {
+    return BaseRoute.errorResponse('Invalid user ID', 400);
+  }
 
-export const PUT = withErrorHandling(async (
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) => {
-  return BaseRoute.handleAuthenticatedUpdateById(
-    request,
-    params,
-    (id, data, auth) => userController.update(id, data),
-    'User',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.USER_UPDATE],
-      allowSelf: true // Users can update their own data
-    }
-  );
-}, 'PUT User');
+  const userId = Number(id);
+  
+  if (auth.user.id !== userId) {
+    return BaseRoute.errorResponse('Access denied', 403);
+  }
 
-export const DELETE = withErrorHandling(async (
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) => {
-  return BaseRoute.handleAuthenticatedDeleteById(
-    request,
-    params,
-    (id, auth) => userController.delete(id),
-    'User',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.USER_DELETE],
-      allowSelf: false // Users cannot delete themselves
-    }
-  );
-}, 'DELETE User');
+  const result = await userController.getById(userId);
+  return handleApiResponse(result, auth.user?.email);
+}, {
+  requiredPermissions: [PERMISSIONS.USER_READ]
+});
+
+export const PUT = handleProtectedRoute(async (request: NextRequest, { auth }) => {
+  const url = new URL(request.url);
+  const id = url.pathname.split('/').pop();
+  
+  if (!id || isNaN(Number(id))) {
+    return BaseRoute.errorResponse('Invalid user ID', 400);
+  }
+
+  const userId = Number(id);
+  
+  if (auth.user.id !== userId) {
+    return BaseRoute.errorResponse('Access denied', 403);
+  }
+
+  const data = await request.json();
+  const result = await userController.update(userId, data);
+  return handleApiResponse(result, auth.user?.email);
+}, {
+  requiredPermissions: [PERMISSIONS.USER_UPDATE]
+});
+
+export const DELETE = handleProtectedRoute(async (request: NextRequest, { auth }) => {
+  const url = new URL(request.url);
+  const id = url.pathname.split('/').pop();
+  
+  if (!id || isNaN(Number(id))) {
+    return BaseRoute.errorResponse('Invalid user ID', 400);
+  }
+
+  const userId = Number(id);
+  
+  const result = await userController.delete(userId);
+  return handleApiResponse(result, auth.user?.email);
+}, {
+  requiredPermissions: [PERMISSIONS.USER_DELETE]
+});
