@@ -33,8 +33,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Use the clean service-based verifyEmail method
-    const result = await userController.verifyEmail(userId);
+    const result = await userController.update(userId, { isVerified: true });
     
     return NextResponse.json(result, { 
       status: result.success ? 200 : 400 

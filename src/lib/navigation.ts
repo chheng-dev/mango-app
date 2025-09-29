@@ -10,7 +10,7 @@ import {
   HelpCircle,
   Package,
 } from 'lucide-react';
-import { PERMISSION_COMBINATIONS } from '@/lib/utils/permissions';
+import { PERMISSIONS } from '@/lib/constants/permissions';
 
 export interface NavigationItem {
   name: string;
@@ -34,21 +34,21 @@ export const mainNavigation: NavigationItem[] = [
     name: "User Management", 
     href: '/admin/users', 
     icon: Users,
-    permissions: PERMISSION_COMBINATIONS.USER_MANAGEMENT,
+    permissions: [PERMISSIONS.USER_READ],
     category: 'users'
   },
   { 
     name: 'Roles Management', 
     href: '/admin/roles', 
     icon: Shield,
-    permissions: PERMISSION_COMBINATIONS.ROLE_MANAGEMENT,
+    permissions: [PERMISSIONS.ROLE_READ],
     category: 'rbac'
   },
   { 
     name: 'Permissions', 
     href: '/admin/permissions', 
     icon: Shield,
-    permissions: PERMISSION_COMBINATIONS.PERMISSION_MANAGEMENT,
+    permissions: [PERMISSIONS.PERMISSION_READ],
     category: 'rbac'
   },
 ];
@@ -58,14 +58,14 @@ export const businessNavigation: NavigationItem[] = [
     name: 'Products', 
     href: '/admin/products', 
     icon: Package,
-    permissions: PERMISSION_COMBINATIONS.PRODUCT_MANAGEMENT,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN], // Using system admin for business features
     category: 'business'
   },
   { 
     name: 'Reports', 
     href: '/admin/reports', 
     icon: BarChart3,
-    permissions: PERMISSION_COMBINATIONS.REPORT_ACCESS,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN], // Using system admin for reports
     category: 'business'
   },
 ];
@@ -75,28 +75,28 @@ export const eventNavigation: NavigationItem[] = [
     name: 'My Schedule', 
     href: '/admin/schedule', 
     icon: Calendar,
-    permissions: PERMISSION_COMBINATIONS.SCHEDULE_ACCESS,
+    permissions: [PERMISSIONS.PROFILE_READ], // Users can view their own schedule
     category: 'events'
   },
   { 
     name: 'Manage Events', 
     href: '/admin/events', 
     icon: Settings,
-    permissions: PERMISSION_COMBINATIONS.EVENT_MANAGEMENT,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN], // Admin feature for managing events
     category: 'events'
   },
   { 
     name: 'Calendar', 
     href: '/admin/calendar', 
     icon: Calendar,
-    permissions: PERMISSION_COMBINATIONS.CALENDAR_ACCESS,
+    permissions: [PERMISSIONS.PROFILE_READ], // Users can view calendar
     category: 'events'
   },
   { 
     name: 'People', 
     href: '/admin/people', 
     icon: Users,
-    permissions: ['people:read', 'people:list'],
+    permissions: [PERMISSIONS.USER_READ], // Need user read permission to view people
     category: 'events'
   },
 ];
@@ -119,16 +119,9 @@ export const navigationByCategory = {
 
 // Permission groups for easier management
 export const permissionGroups = {
-  users: ['users:read', 'users:list', 'users:create', 'users:update', 'users:delete'],
-  roles: ['roles:read', 'roles:list', 'roles:create', 'roles:update', 'roles:delete'],
-  permissions: ['permissions:read', 'permissions:list', 'permissions:create', 'permissions:update', 'permissions:delete'],
-  rbac: ['rbac:read', 'rbac:manage'],
-  products: ['products:read', 'products:list', 'products:create', 'products:update', 'products:delete'],
-  reports: ['reports:read', 'reports:generate', 'reports:export'],
-  events: ['events:read', 'events:create', 'events:update', 'events:delete', 'events:manage'],
-  schedule: ['schedule:read', 'schedule:update'],
-  calendar: ['calendar:read', 'calendar:update'],
-  people: ['people:read', 'people:list', 'people:create', 'people:update', 'people:delete'],
-  notifications: ['notifications:read', 'notifications:create', 'notifications:update', 'notifications:delete'],
-  documents: ['documents:read', 'documents:create', 'documents:update', 'documents:delete'],
+  users: [PERMISSIONS.USER_READ, PERMISSIONS.USER_CREATE, PERMISSIONS.USER_UPDATE, PERMISSIONS.USER_DELETE],
+  roles: [PERMISSIONS.ROLE_READ, PERMISSIONS.ROLE_CREATE, PERMISSIONS.ROLE_UPDATE, PERMISSIONS.ROLE_DELETE],
+  permissions: [PERMISSIONS.PERMISSION_READ, PERMISSIONS.PERMISSION_CREATE, PERMISSIONS.PERMISSION_UPDATE, PERMISSIONS.PERMISSION_DELETE],
+  system: [PERMISSIONS.SYSTEM_ADMIN, PERMISSIONS.SYSTEM_SETTINGS],
+  profile: [PERMISSIONS.PROFILE_READ, PERMISSIONS.PROFILE_UPDATE],
 };

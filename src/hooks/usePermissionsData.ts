@@ -12,7 +12,6 @@ export const PERMISSIONS_QUERY_KEYS = {
   grouped: () => [...PERMISSIONS_QUERY_KEYS.all, 'grouped'] as const,
 } as const;
 
-// Hook for fetching all permissions
 export function usePermissionsListHook(options: {
   page?: number;
   limit?: number;
@@ -24,12 +23,11 @@ export function usePermissionsListHook(options: {
   return useQuery({
     queryKey: PERMISSIONS_QUERY_KEYS.list(JSON.stringify(options)),
     queryFn: () => permissionApiService.getAllPermissions(options),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000, 
     retry: 2,
   });
 }
 
-// Hook for fetching a single permission
 export function usePermissionHook(id: number | null) {
   return useQuery({
     queryKey: PERMISSIONS_QUERY_KEYS.detail(id!),
@@ -40,7 +38,6 @@ export function usePermissionHook(id: number | null) {
   });
 }
 
-// Hook for fetching unique resources
 export function usePermissionResources() {
   return useQuery({
     queryKey: PERMISSIONS_QUERY_KEYS.resources(),

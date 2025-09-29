@@ -95,6 +95,57 @@ export abstract class BaseModel<TSelect, TInsert> {
   }
 
   /**
+   * Find record by specific field
+   */
+  async findByField(fieldName: string, value: string | number | boolean, options?: { 
+    caseSensitive?: boolean;
+    transformValue?: (val: string | number | boolean) => string | number | boolean;
+  }): Promise<ModelResponse<TSelect>> {
+    try {
+      if (!this.table[fieldName]) {
+        return {
+          success: false,
+          error: `Field '${fieldName}' does not exist in ${this.tableName} table`
+        };
+      }
+
+      let searchValue = value;
+      
+      // Apply transformation if provided
+      if (options?.transformValue) {
+        searchValue = options.transformValue(value);
+      } else if (typeof value === 'string' && !options?.caseSensitive) {
+        // Default behavior: lowercase for strings unless case sensitive
+        searchValue = value.toLowerCase();
+      }
+
+      const result = await db
+        .select()
+        .from(this.table)
+        .where(eq(this.table[fieldName], searchValue))
+        .limit(1);
+
+      if (!result || result.length === 0) {
+        return {
+          success: false,
+          error: 'Record not found'
+        };
+      }
+
+      return {
+        success: true,
+        data: result[0]
+      };
+    } catch (error) {
+      console.error(`${this.tableName} findByField error:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : `Failed to find record by ${fieldName}`
+      };
+    }
+  }
+
+  /**
    * Get all records with pagination and search
    */
   async findMany(options: PaginationOptions & SearchOptions = {}): Promise<ModelResponse<TSelect[]>> {

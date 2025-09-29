@@ -4,7 +4,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { DataTable, Column, DataTableAction } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Star, Eye, Edit, Trash2, Plus } from 'lucide-react';
+import { Star, Eye, Edit, Trash2 } from 'lucide-react';
 
 interface Product {
   id: number;

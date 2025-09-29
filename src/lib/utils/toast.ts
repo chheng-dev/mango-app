@@ -1,4 +1,3 @@
-// Enhanced toast notification utility with advanced UI and features
 export type ToastType = 'success' | 'error' | 'info' | 'warning' | 'loading';
 export type ToastPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
 
@@ -18,6 +17,13 @@ interface ToastOptions {
   onClose?: () => void;
   richContent?: boolean; // Allow HTML content
 }
+
+declare global {
+  interface Window {
+    removeToast?: (element: HTMLElement) => void;
+  }
+}
+
 
 const toastIcons = {
   success: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -205,9 +211,8 @@ export function showToast({
   
   container.appendChild(notification);
   
-  // Enhanced global remove function
-  if (!(window as any).removeToast) {
-    (window as any).removeToast = (element: HTMLElement) => {
+  if (!window.removeToast) {
+    window.removeToast = (element: HTMLElement) => {
       if (element && element.parentElement) {
         const container = element.parentElement;
         const position = container.getAttribute('data-position') as ToastPosition;
@@ -218,18 +223,16 @@ export function showToast({
             element.remove();
             onClose?.();
           }
-          // Clean up container if empty
           cleanupContainer(position);
         }, 300);
       }
     };
   }
   
-  // Auto-remove after duration (unless persistent)
   let timeoutId: NodeJS.Timeout | null = null;
   if (!persistent) {
     timeoutId = setTimeout(() => {
-      (window as any).removeToast(notification);
+      window.removeToast?.(notification);
     }, finalDuration);
   }
   
@@ -257,7 +260,7 @@ export function showToast({
   return {
     id: toastId,
     element: notification,
-    remove: () => (window as any).removeToast(notification),
+    remove: () => window.removeToast?.(notification),
     updateContent: (newMessage: string, newTitle?: string) => {
       const messageEl = notification.querySelector('.text-gray-700');
       const titleEl = notification.querySelector('.font-semibold');
@@ -381,12 +384,12 @@ export const toast = {
   // Bulk operations
   dismissAll: () => {
     const toasts = document.querySelectorAll('.toast-notification');
-    toasts.forEach((toast) => (window as any).removeToast?.(toast));
+    toasts.forEach((toast) => window.removeToast?.(toast as HTMLElement));
   },
 
   dismissByType: (type: ToastType) => {
     const toasts = document.querySelectorAll(`[data-toast-type="${type}"]`);
-    toasts.forEach((toast) => (window as any).removeToast?.(toast));
+    toasts.forEach((toast) => window.removeToast?.(toast as HTMLElement));
   },
   
   // Specialized notifications
@@ -443,7 +446,7 @@ export const toast = {
     if (toastId) {
       const toast = document.querySelector(`[data-toast-id="${toastId}"]`);
       if (toast) {
-        (window as any).removeToast?.(toast);
+        window.removeToast?.(toast as HTMLElement);
       }
     } else {
       toast.dismissAll();

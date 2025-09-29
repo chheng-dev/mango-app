@@ -1,30 +1,22 @@
-import { BaseModel } from './BaseModel';
+import { BaseModel } from './baseModel';
 import { permissions } from '../db/schemas/permissions';
-import { eq, and, ilike, ne, or, sql } from 'drizzle-orm';
+import { eq, and, ilike, ne, or } from 'drizzle-orm';
 import { db } from '../db';
 
 export type PermissionSelect = typeof permissions.$inferSelect;
 export type PermissionInsert = typeof permissions.$inferInsert;
 
-/**
- * PermissionModel - Data Access Layer for Permissions
- * 
- * Handles direct database operations for permissions
- */
 export class PermissionModel extends BaseModel<PermissionSelect, PermissionInsert> {
   protected tableName = 'permissions';
   protected table = permissions;
   
   constructor() {
     super(
-      [permissions.name, permissions.slug, permissions.resource, permissions.action, permissions.description], // searchable fields
-      ['name', 'resource', 'action'] // required fields
+      [permissions.name, permissions.slug, permissions.resource, permissions.action, permissions.description], 
+      ['name', 'resource', 'action'] 
     );
   }
 
-  /**
-   * Find permission by slug
-   */
   async findBySlug(slug: string) {
     try {
       const result = await db
@@ -53,9 +45,6 @@ export class PermissionModel extends BaseModel<PermissionSelect, PermissionInser
     }
   }
 
-  /**
-   * Find permission by name
-   */
   async findByName(name: string) {
     try {
       const result = await db
@@ -84,9 +73,6 @@ export class PermissionModel extends BaseModel<PermissionSelect, PermissionInser
     }
   }
 
-  /**
-   * Find permissions by resource
-   */
   async findByResource(resource: string) {
     try {
       const result = await db
@@ -108,9 +94,6 @@ export class PermissionModel extends BaseModel<PermissionSelect, PermissionInser
     }
   }
 
-  /**
-   * Find permissions by resource and action combination
-   */
   async findByResourceAction(resource: string, action: string) {
     try {
       const result = await db
@@ -142,9 +125,6 @@ export class PermissionModel extends BaseModel<PermissionSelect, PermissionInser
     }
   }
 
-  /**
-   * Get all unique resources
-   */
   async getUniqueResources() {
     try {
       const result = await db
@@ -165,9 +145,6 @@ export class PermissionModel extends BaseModel<PermissionSelect, PermissionInser
     }
   }
 
-  /**
-   * Get all unique actions for a resource
-   */
   async getUniqueActionsForResource(resource: string) {
     try {
       const result = await db
@@ -319,6 +296,27 @@ export class PermissionModel extends BaseModel<PermissionSelect, PermissionInser
       };
     } catch (error) {
       console.error('PermissionModel getPermissionsGroupedByResource error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Database query failed'
+      };
+    }
+  }
+
+  async getPermissionsByResource(resource: string) {
+    try {
+      const result = await db
+        .select()
+        .from(permissions)
+        .where(eq(permissions.resource, resource))
+        .orderBy(permissions.action);
+
+      return {
+        success: true,
+        data: result
+      };
+    } catch (error) {
+      console.error('PermissionModel getPermissionsByResource error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Database query failed'

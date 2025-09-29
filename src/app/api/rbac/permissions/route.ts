@@ -1,39 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { permissionController } from '@/lib/controllers/PermissionController';
-import { BaseRoute, withErrorHandling } from '@/lib/utils/BaseRoute';
+import { handleApiResponse, handleProtectedRoute } from '@/lib/utils/BaseRoute';
 import { PERMISSIONS } from '@/lib/constants/permissions';
 
-export const GET = withErrorHandling(async (request: NextRequest) => {
-  return BaseRoute.handleAuthenticatedGetCollection(
-    request,
-    async (params, auth) => {
-      const { searchParams } = new URL(request.url);
-      const resource = searchParams.get('resource') || undefined;
-      
-      if (resource) {
-        // Get permissions by resource
-        return await permissionController.getPermissionsByResource(resource);
-      }
-      
-      // Get all permissions with pagination
-      return await permissionController.getAll(params);
-    },
-    'Permissions',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.PERMISSION_READ]
-    }
-  );
-}, 'GET Permissions');
 
-export const POST = withErrorHandling(async (request: NextRequest) => {
-  return BaseRoute.handleAuthenticatedCreate(
-    request,
-    (data, auth) => permissionController.create(data),
-    'Permission',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.PERMISSION_CREATE]
-    }
-  );
-}, 'POST Permission');
+export const GET = handleProtectedRoute(async (request: NextRequest, { auth }) => {
+  const url = new URL(request.url);
+  const resource = url.searchParams.get('resource') || undefined;
+
+  let result;
+  if (resource) {
+    result = await permissionController.getPermissionsByResource(resource);
+  } else {
+    result = await permissionController.getAll();
+  }
+
+  return handleApiResponse(result, auth.user?.email);
+}, { requiredPermissions: [PERMISSIONS.PERMISSION_READ] });
+
+export const POST = handleProtectedRoute(async (request: NextRequest, { auth }) => {
+  const data = await request.json();
+  const result = await permissionController.create(data);
+  return handleApiResponse(result, auth.user?.email);
+}, { requiredPermissions: [PERMISSIONS.PERMISSION_CREATE] });

@@ -1,80 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { userController } from '@/lib/controllers/UserController';
-import { BaseRoute, withErrorHandling } from '@/lib/utils/BaseRoute';
+import { BaseRoute, withErrorHandling, HTTP_STATUS } from '@/lib/utils/BaseRoute';
+import { PasswordService } from '@/lib/services/passwordService';
+import { jwtService } from '@/lib/auth/jwt';
 
 /**
  * User Registration API
  */
-
 export const POST = withErrorHandling(async (request: NextRequest) => {
-  try {
-    const body = await request.json();
-    const { email, name, code, password, passwordConfirmation, dob, phoneNumber } = body;
+  const body = await request.json();
+  const { email, name, code, password, passwordConfirmation, dob, phoneNumber } = body;
 
-    // Validate required fields
-    if (!email || !name || !code || !password || !passwordConfirmation) {
-      return BaseRoute.errorResponse(
-        'Email, name, code, password, and password confirmation are required',
-        400
-      );
-    }
-
-    // Check password match
-    if (password !== passwordConfirmation) {
-      return BaseRoute.errorResponse(
-        'Password confirmation does not match',
-        400
-      );
-    }
-
-    // Create user data object
-    const userData = {
-      email,
-      name,
-      code,
-      passwordHash: password, // Will be hashed in transformForSave
-      passwordConfirmation: password, // Will be hashed in transformForSave
-      dob: dob ? new Date(dob) : undefined,
-      phoneNumber
-    };
-
-    const result = await userController.create(userData);
-    
-    if (result.success && result.data) {
-      // Automatically log in the user after successful registration
-      const loginResult = await userController.login(email, password);
-      
-      if (loginResult.success && loginResult.data) {
-        // Set token in HTTP-only cookie
-        const response = NextResponse.json({
-          success: true,
-          data: {
-            user: loginResult.data.user,
-            token: loginResult.data.token
-          },
-          message: 'Registration successful and logged in'
-        }, { status: 201 });
-        
-        response.cookies.set('auth-token', loginResult.data.token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 24 * 60 * 60 // 24 hours
-        });
-
-        return response;
-      }
-    }
-
-    return BaseRoute.successResponse(result, {
-      successStatus: result.success ? 201 : 400
-    });
-
-  } catch (error) {
-    console.error('Registration API error:', error);
+  if (!email || !name || !password || !passwordConfirmation) {
     return BaseRoute.errorResponse(
-      error instanceof Error ? error.message : 'Registration failed',
-      500
+      'Email, name, password, and password confirmation are required',
+      HTTP_STATUS.BAD_REQUEST
     );
   }
+
+  // Check password match
+  if (password !== passwordConfirmation) {
+    return BaseRoute.errorResponse(
+      'Password confirmation does not match',
+      HTTP_STATUS.BAD_REQUEST
+    );
+  }
+
+  // Check if email already exists
+  const existingUser = await userController.getByEmail(email);
+  if (existingUser.success) {
+    return BaseRoute.errorResponse('Email already exists', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Validate password strength
+  const strength = PasswordService.validateStrength(password);
+  if (!strength.isValid) {
+    return BaseRoute.errorResponse(strength.errors.join(', '), HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const passwordHash = await PasswordService.hash(password);
+
+  const userData = {
+    email: email.toLowerCase(),
+    name,
+    code: code || `USER_${Date.now()}`,
+    passwordHash,
+    passwordConfirmation, 
+    dob: dob ? new Date(dob) : null,
+    phoneNumber: phoneNumber || null,
+    isActive: true,
+    isVerified: false
+  };
+
+  const result = await userController.create(userData);
+  
+  if (!result.success || !result.data) {
+    return BaseRoute.errorResponse(result.error || 'Registration failed', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const user = result.data;
+  
+  // Generate token for automatic login
+  const token = jwtService.generateAccessToken({
+    userId: user.id,
+    email: user.email,
+    code: user.code,
+    isVerified: user.isVerified ?? false
+  });
+
+  // Set token in HTTP-only cookie
+  const response = NextResponse.json({
+    success: true,
+    data: { user, token },
+    message: 'Registration successful and logged in'
+  }, { status: HTTP_STATUS.CREATED });
+  
+  response.cookies.set('auth-token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7 // 7 days
+  });
+
+  return response;
 }, 'POST Register');

@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BaseRoute, withErrorHandling } from '@/lib/utils/BaseRoute';
 
-/**
- * Logout API - Clear authentication token
- */
-
-// POST /api/auth/logout - User logout
 export const POST = withErrorHandling(async (request: NextRequest) => {
   try {
     const response = NextResponse.json(
@@ -16,12 +11,11 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
       { status: 200 }
     );
 
-    // Clear the auth token cookie
     response.cookies.set('auth-token', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 0 // Expire immediately
+      maxAge: 0
     });
 
     return response;
@@ -31,3 +25,4 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     return BaseRoute.errorResponse('Logout failed', 500);
   }
 }, 'POST Logout');
+

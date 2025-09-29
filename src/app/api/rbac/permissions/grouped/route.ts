@@ -1,18 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { permissionController } from '@/lib/controllers/PermissionController';
-import { BaseRoute, withErrorHandling } from '@/lib/utils/BaseRoute';
+import { handleApiResponse, handleProtectedRoute } from '@/lib/utils/BaseRoute';
 import { PERMISSIONS } from '@/lib/constants/permissions';
 
-export const GET = withErrorHandling(async (request: NextRequest) => {
-  return BaseRoute.handleAuthenticatedGetCollection(
-    request,
-    async (params, auth) => {
-      return await permissionController.getPermissionsGroupedByResource();
-    },
-    'Grouped Permissions',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.PERMISSION_READ]
-    }
-  );
-}, 'GET Grouped Permissions');
+export const GET = handleProtectedRoute(async (request: NextRequest, { auth }) => {
+  const result = await permissionController.getPermissionsGroupedByResource();
+  return handleApiResponse(result, auth.user?.email);
+}, { requiredPermissions: [PERMISSIONS.PERMISSION_READ]});

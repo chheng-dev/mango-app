@@ -1,58 +1,37 @@
 import { permissionController } from "@/lib/controllers/PermissionController";
-import { NextRequest, NextResponse } from "next/server";
-import { BaseRoute, withErrorHandling } from "@/lib/utils/BaseRoute";
+import { BaseRoute, handleApiResponse, createProtectedRoute } from "@/lib/utils/BaseRoute";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 
-export const GET = withErrorHandling(async (
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) => {
-  return BaseRoute.handleAuthenticatedGetById(
-    request,
-    params,
-    async (permissionId: number, auth?: any) => {
-      return await permissionController.getById(permissionId);
-    },
-    'Permission',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.PERMISSION_READ]
-    }
-  );
-}, 'GET Permission');
+export const GET = createProtectedRoute(async (request, { user, params }) => {
+  const permissionId = Number(params?.id);
+  
+  if (isNaN(permissionId) || permissionId <= 0) {
+    return BaseRoute.errorResponse('Invalid permission ID', 400);
+  }
 
-export const PUT = withErrorHandling(async (
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) => {
-  return BaseRoute.handleAuthenticatedUpdateById(
-    request,
-    params,
-    async (permissionId: number, data: any, auth?: any) => {
-      return await permissionController.update(permissionId, data);
-    },
-    'Permission',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.PERMISSION_UPDATE]
-    }
-  );
-}, 'PUT Permission');
+  const result = await permissionController.getById(permissionId);
+  return handleApiResponse(result, user?.email);
+}, { requiredPermissions: [PERMISSIONS.PERMISSION_READ] });
 
-export const DELETE = withErrorHandling(async (
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) => {
-  return BaseRoute.handleAuthenticatedDeleteById(
-    request,
-    params,
-    async (permissionId: number, auth?: any) => {
-      return await permissionController.delete(permissionId);
-    },
-    'Permission',
-    {
-      requireAuth: true,
-      requiredPermissions: [PERMISSIONS.PERMISSION_DELETE]
-    }
-  );
-}, 'DELETE Permission');
+export const PUT = createProtectedRoute(async (request, { user, params }) => {
+  const permissionId = Number(params?.id);
+  
+  if (isNaN(permissionId) || permissionId <= 0) {
+    return BaseRoute.errorResponse('Invalid permission ID', 400);
+  }
+
+  const data = await request.json();
+  const result = await permissionController.update(permissionId, data);
+  return handleApiResponse(result, user?.email);
+}, { requiredPermissions: [PERMISSIONS.PERMISSION_UPDATE] });
+
+export const DELETE = createProtectedRoute(async (request, { user, params }) => {
+  const permissionId = Number(params?.id);
+  
+  if (isNaN(permissionId) || permissionId <= 0) {
+    return BaseRoute.errorResponse('Invalid permission ID', 400);
+  }
+
+  const result = await permissionController.delete(permissionId);
+  return handleApiResponse(result, user?.email);
+}, { requiredPermissions: [PERMISSIONS.PERMISSION_DELETE] });
