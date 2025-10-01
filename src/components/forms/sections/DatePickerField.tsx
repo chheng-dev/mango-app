@@ -21,6 +21,7 @@ export function DatePickerField({
       label="Date of Birth"
       error={errors.dob?.message}
       description="User's date of birth (optional)"
+      className="px-4"
     >
       <div className="max-w-sm">
         <DatePicker

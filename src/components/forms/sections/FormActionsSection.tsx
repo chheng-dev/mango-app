@@ -20,7 +20,7 @@ export function FormActionsSection({
   isSubmitting = false,
 }: FormActionsSectionProps) {
   return (
-    <div className="flex items-center justify-between pt-6 border-t border-border">
+    <div className="flex items-center justify-between pt-6 px-4 border-t border-border">
       <div className="flex items-center space-x-3">
         <Button
           type="button"
