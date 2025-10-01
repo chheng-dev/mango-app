@@ -12,13 +12,12 @@ export function ThemeToggle() {
       variant="ghost"
       size="icon"
       onClick={() => {
-        const newTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+        const newTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'light' : 'light';
         setTheme(newTheme);
       }}
     >
       {theme === 'light' && <Sun className="h-4 w-4" />}
       {theme === 'dark' && <Moon className="h-4 w-4" />}
-      {theme === 'system' && <Monitor className="h-4 w-4" />}
       <span className="sr-only">Toggle theme</span>
     </Button>
   );

@@ -34,8 +34,8 @@ function NavigationItem({ item, isActive }: { item: NavigationItem; isActive: bo
   if (isLoading) {
     return (
       <div className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium animate-pulse">
-        <div className="h-5 w-5 bg-slate-200 dark:bg-slate-700 rounded"></div>
-        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded flex-1"></div>
+        <div className="h-5 w-5 bg-muted rounded"></div>
+        <div className="h-4 bg-muted rounded flex-1"></div>
       </div>
     );
   }
@@ -50,21 +50,21 @@ function NavigationItem({ item, isActive }: { item: NavigationItem; isActive: bo
       href={item.href}
       className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
         isActive
-          ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 shadow-sm'
-          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+          ? 'bg-primary/10 text-primary shadow-sm'
+          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
       }`}
     >
-      <item.icon className={`h-5 w-5 shrink-0 ${
-        isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300'
+      <item.icon className={`h-5 w-5 shrink-0 transition-colors ${
+        isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-accent-foreground'
       }`} />
       <span className="flex-1">{item.name}</span>
       {item.badge && (
-        <Badge variant="secondary" className="h-5 px-2 text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800">
+        <Badge variant="secondary" className="h-5 px-2 text-xs">
           {item.badge}
         </Badge>
       )}
       {isActive && (
-        <div className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></div>
+        <div className="ml-auto h-1.5 w-1.5 rounded-full bg-primary"></div>
       )}
     </Link>
   );
@@ -76,16 +76,16 @@ export function Sidebar({ className }: SidebarProps) {
   const { permissions, isSuperAdmin, isLoading, isError } = useUserPermissions();
 
   return (
-    <div className={`flex h-full w-full flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 ${className}`}>
+    <div className={`flex h-full w-full flex-col bg-background border-r border-border ${className}`}>
       {/* Header */}
-      <div className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-border">
         <div className="flex items-center space-x-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Shield className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-sm font-semibold text-slate-900 dark:text-white">Mango App</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Admin Dashboard</p>
+            <h1 className="text-sm font-semibold text-foreground">Mango App</h1>
+            <p className="text-xs text-muted-foreground">Admin Dashboard</p>
           </div>
         </div>
       </div>
@@ -94,7 +94,7 @@ export function Sidebar({ className }: SidebarProps) {
       <div className="flex-1 overflow-y-auto">
         {/* Overview Section */}
         <div className="p-4 space-y-1">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             Overview
           </div>
           {mainNavigation.map((item) => (
@@ -112,7 +112,7 @@ export function Sidebar({ className }: SidebarProps) {
 
         {/* Business Section */}
         <div className="p-4 space-y-1">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             Business
           </div>
           {businessNavigation.map((item) => (
@@ -134,20 +134,20 @@ export function Sidebar({ className }: SidebarProps) {
       </div>
 
       {/* User Section */}
-      <div className="border-t border-slate-200 dark:border-slate-700 p-4">
-        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-          <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium">
+      <div className="border-t border-border p-4">
+        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent transition-colors cursor-pointer">
+          <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
             {user?.name?.charAt(0).toUpperCase() || 'U'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+            <p className="text-sm font-medium text-foreground truncate">
               {user?.name || 'User'}
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+            <p className="text-xs text-muted-foreground truncate">
               {user?.email || 'user@example.com'}
             </p>
           </div>
-          <Settings className="h-4 w-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" />
+          <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
         </div>
       </div>
     </div>

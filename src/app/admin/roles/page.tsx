@@ -19,7 +19,7 @@ export default function RolesManagementPage() {
     deleteLoading
   } = useRolesPage();
 
-  const { columns, rowActions } = useRolesTableConfig({
+  const { columns } = useRolesTableConfig({
     onViewRole: handleViewRole,
     onEditRole: handleEditRole,
     onDeleteRole: handleDeleteRole,
@@ -41,14 +41,7 @@ export default function RolesManagementPage() {
         data={roles}
         columns={columns}
         searchPlaceholder="Search roles by name, slug, or description..."
-        rowActions={rowActions}
-        onAdd={handleCreateRole}
-        addButtonText="Add Role"
         isLoading={loading}
-        skeletonRows={6}
-        emptyTitle="No roles found"
-        emptyDescription="Start by creating your first role to manage permissions and user access."
-        emptyIcon={Shield}
       />
     </div>
   );

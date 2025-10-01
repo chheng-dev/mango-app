@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
-import { Column, DataTableAction } from '@/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
   Shield, 
   ShieldCheck, 
@@ -12,7 +11,8 @@ import {
   Settings,
   Database,
   Users,
-  Lock
+  Lock,
+  Plus
 } from 'lucide-react';
 import { Permission } from '@/lib/api/permissionApiService';
 
@@ -30,32 +30,26 @@ export function usePermissionsTableConfig({
   deleteLoading
 }: UsePermissionsTableConfigProps) {
   
-  const columns: Column<Permission>[] = useMemo(() => [
+  const columns: ColumnDef<Permission>[] = useMemo(() => [
     {
-      key: 'name',
-      title: 'Permission Details',
-      sortable: true,
-      render: (value, permission) => (
+      accessorKey: 'name',
+      header: 'Permission Details',
+      cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold">
-              {getResourceIcon(permission.resource)}
-            </AvatarFallback>
-          </Avatar>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <div className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                {permission.name}
+              <div className="font-semibold text-foreground truncate">
+                {row.original.name}
               </div>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-              <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                {permission.slug}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <code className="text-xs bg-muted px-2 py-1 rounded">
+                {row.original.slug}
               </code>
             </div>
-            {permission.description && (
-              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
-                {permission.description}
+            {row.original.description && (
+              <div className="text-sm text-muted-foreground mt-1 truncate">
+                {row.original.description}
               </div>
             )}
           </div>
@@ -63,77 +57,55 @@ export function usePermissionsTableConfig({
       ),
     },
     {
-      key: 'resource',
-      title: 'Resource',
-      sortable: true,
-      render: (value, permission) => (
+      accessorKey: 'resource',
+      header: 'Resource',
+      cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <Badge 
             variant="outline" 
-            className="capitalize font-medium bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+            className="capitalize font-medium bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
           >
-            {getResourceIcon(permission.resource)}
-            <span className="ml-1">{permission.resource}</span>
+            {getResourceIcon(row.original.resource)}
+            <span className="ml-1">{row.original.resource}</span>
           </Badge>
         </div>
       ),
     },
     {
-      key: 'action',
-      title: 'Action',
-      sortable: true,
-      render: (value, permission) => (
+      accessorKey: 'action',
+      header: 'Action',
+      cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <Badge 
-            variant={getActionVariant(permission.action)}
+            variant={getActionVariant(row.original.action)}
             className="capitalize font-medium"
           >
-            {getActionIcon(permission.action)}
-            <span className="ml-1">{permission.action}</span>
+            {getActionIcon(row.original.action)}
+            <span className="ml-1">{row.original.action}</span>
           </Badge>
         </div>
       ),
     },
     {
-      key: 'createdAt',
-      title: 'Created',
-      sortable: true,
-      render: (value) => (
-        <div className="text-sm text-gray-600 dark:text-gray-300">
-          {new Date(value).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-          })}
-        </div>
-      ),
+      accessorKey: 'createdAt',
+      header: 'Created',
+      cell: ({ getValue }) => {
+        const value = getValue() as string;
+        return (
+          <div className="text-sm text-muted-foreground">
+            {new Date(value).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            })}
+          </div>
+        );
+      },
     },
   ], []);
 
-  const actions: DataTableAction<Permission>[] = useMemo(() => [
-    {
-      label: 'View',
-      icon: Eye,
-      onClick: onViewPermission,
-    },
-    {
-      label: 'Edit',
-      icon: Edit,
-      onClick: onEditPermission,
-    },
-    {
-      label: 'Delete',
-      icon: Trash2,
-      onClick: onDeletePermission,
-      variant: 'destructive',
-      loading: (permission: Permission) => deleteLoading === permission.id,
-      disabled: (permission: Permission) => deleteLoading === permission.id
-    },
-  ], [onViewPermission, onEditPermission, onDeletePermission, deleteLoading]);
-
   return {
     columns,
-    actions,
   };
 }
 
@@ -191,5 +163,4 @@ function getActionVariant(action: string): "default" | "secondary" | "destructiv
   }
 }
 
-// Fix import for Plus icon
-import { Plus } from 'lucide-react';
+

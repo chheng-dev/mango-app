@@ -116,7 +116,7 @@ User Details:
       breadcrumbs={breadcrumbs}
       onBack={() => router.push('/admin/users')}
     >
-      <div className="p-8 space-y-8">
+      <div className="p-4 space-y-4">
         <UserForm
           mode="edit"
           initialData={{

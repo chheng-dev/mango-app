@@ -46,13 +46,11 @@ export default function CreateUserPage() {
       breadcrumbs={breadcrumbs}
       onBack={() => router.push('/admin/users')}
     >
-      <div className="p-8 space-y-8">
-        <UserForm
-          mode="create"
-          onSubmit={handleSubmit}
-          className="space-y-8"
-        />
-      </div>
+      <UserForm
+        mode="create"
+        onSubmit={handleSubmit}
+        className="space-y-8"
+      />
     </FormLayout>
   );
 }

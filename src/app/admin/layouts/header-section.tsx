@@ -65,10 +65,8 @@ export default function HeaderSection() {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <header className="flex items-center justify-between h-16 bg-background border-b border-border">
-      {/* Left: Breadcrumbs and Title */}
+    <header className="flex h-16">
       <div className="flex items-center space-x-4 min-w-0 flex-1">
-        {/* Clean Breadcrumbs */}
         <nav className="flex items-center space-x-1 text-sm text-muted-foreground">
           {breadcrumbs.map((item, index) => (
             <div key={item.href} className="flex items-center">

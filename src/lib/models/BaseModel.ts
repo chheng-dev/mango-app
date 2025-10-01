@@ -12,7 +12,7 @@ export interface SearchOptions {
   query?: string;
   filters?: Record<string, string | number | boolean>;
 }
-
+ 
 export interface ModelResponse<T> {
   success: boolean;
   data?: T;

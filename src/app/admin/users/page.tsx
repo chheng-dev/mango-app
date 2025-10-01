@@ -1,27 +1,30 @@
 'use client';
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { DataTable, Column, DataTableAction } from '@/components/ui/data-table';
+import { DataTable } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   UserCheck, 
   UserX, 
-  Edit, 
   Trash2, 
   Mail, 
   Shield, 
   AlertTriangle, 
   Users, 
   UserPlus,
-  Home,
   Filter,
-  Download
+  Download,
+  CheckCircle,
+  XCircle,
+  Grid2X2PlusIcon,
+  Plus
 } from 'lucide-react';
 import { useUsers } from '@/hooks/useUsers';
 import { User } from '@/lib/api/userApiService';
-import { toast } from '@/lib/utils/toast';
+import { toast } from "sonner";
+import { ColumnDef } from '@tanstack/react-table';
+import { HeaderComp } from '@/components/share/header-comp';
 
 export default function UsersPage() {
   const router = useRouter();
@@ -98,35 +101,74 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
     }
   }, [updateUserStatus]);
 
-  const columns: Column<User>[] = useMemo(() => [
+  // Bulk actions for DataTable
+  const bulkActions = {
+    actions: [
+      {
+        label: 'Activate',
+        icon: CheckCircle,
+        variant: 'success' as const,
+        onClick: async (selectedUsers: User[]) => {
+          await Promise.all(
+            selectedUsers.map(user => updateUserStatus(user.id, true))
+          );
+          toast.success(`${selectedUsers.length} users activated successfully`);
+        }
+      },
+      {
+        label: 'Deactivate',
+        icon: XCircle,
+        variant: 'warning' as const,
+        onClick: async (selectedUsers: User[]) => {
+          const confirmMessage = `Deactivate ${selectedUsers.length} users?\n\nThis will prevent them from accessing the system.`;
+          if (!window.confirm(confirmMessage)) return;
+          
+          await Promise.all(
+            selectedUsers.map(user => updateUserStatus(user.id, false))
+          );
+          toast.success(`${selectedUsers.length} users deactivated successfully`);
+        }
+      },
+      {
+        label: 'Delete',
+        icon: Trash2,
+        variant: 'destructive' as const,
+        onClick: async (selectedUsers: User[]) => {
+          const confirmMessage = `Delete ${selectedUsers.length} users?\n\nThis action cannot be undone.`;
+          if (!window.confirm(confirmMessage)) return;
+          
+          await Promise.all(
+            selectedUsers.map(user => deleteUser(user.id))
+          );
+          toast.success(`${selectedUsers.length} users deleted successfully`);
+        }
+      }
+    ],
+    getRowId: (user: User) => user.id.toString()
+  };
+
+  const columns: ColumnDef<User>[] = [
     {
-      key: 'name',
-      title: 'User Details',
-      sortable: true,
-      render: (value, item) => (
+      accessorKey: 'name',
+      header: 'User Details',
+      cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={`/placeholder-${item.id}.jpg`} />
-            <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold">
-              {item.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'}
-            </AvatarFallback>
-          </Avatar>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <div className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                {item.name || 'Unknown User'}
+              <div className="font-semibold truncate text-foreground">
+                {row.original.name || 'Unknown User'}
               </div>
-              <Badge variant="outline" className="text-xs font-mono bg-gray-50 dark:bg-gray-800">
-                {item.code}
+              <Badge variant="outline" className="text-xs font-mono">
+                {row.original.code}
               </Badge>
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
-              {item.email}
+            <div className="text-sm text-muted-foreground truncate">
+              {row.original.email}
             </div>
-            {item.phoneNumber && (
-              <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-1">
+            {row.original.phoneNumber && (
+              <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                 <span>📞</span>
-                <span>{item.phoneNumber}</span>
+                <span>{row.original.phoneNumber}</span>
               </div>
             )}
           </div>
@@ -134,19 +176,18 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
       )
     },
     {
-      key: 'isActive',
-      title: 'Status',
-      sortable: true,
-      render: (value, item) => (
+      accessorKey: 'isActive',
+      header: 'Status',
+      cell: ({ row }) => (
         <div className="space-y-2">
           <div>
-            {item.isActive ? (
-              <Badge className="bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400">
+            {row.original.isActive ? (
+              <Badge variant="default" className="bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400">
                 <UserCheck className="w-3 h-3 mr-1" />
                 Active
               </Badge>
             ) : (
-              <Badge variant="secondary" className="bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300">
+              <Badge variant="secondary">
                 <UserX className="w-3 h-3 mr-1" />
                 Inactive
               </Badge>
@@ -155,13 +196,13 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
           
           {/* Verification Status */}
           <div>
-            {item.isVerified ? (
-              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 text-xs">
+            {row.original.isVerified ? (
+              <Badge variant="default" className="bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 dark:text-blue-400 text-xs">
                 <Shield className="w-3 h-3 mr-1" />
                 Verified
               </Badge>
             ) : (
-              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-xs">
+              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 border-yellow-500/20 hover:bg-yellow-500/20 dark:text-yellow-400 text-xs">
                 <AlertTriangle className="w-3 h-3 mr-1" />
                 Unverified
               </Badge>
@@ -171,21 +212,21 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
       )
     },
     {
-      key: 'email',
-      title: 'Contact Info',
-      render: (value, item) => (
+      accessorKey: 'email',
+      header: 'Contact Info',
+      cell: ({ row }) => (
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm">
-            <Mail className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-700 dark:text-gray-300 truncate max-w-[200px]">
-              {item.email}
+            <Mail className="h-4 w-4 text-muted-foreground" />
+            <span className="text-foreground truncate max-w-[200px]">
+              {row.original.email}
             </span>
           </div>
-          {item.phoneNumber && (
+          {row.original.phoneNumber && (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400">📱</span>
-              <span className="text-gray-600 dark:text-gray-400">
-                {item.phoneNumber}
+              <span className="text-muted-foreground">📱</span>
+              <span className="text-muted-foreground">
+                {row.original.phoneNumber}
               </span>
             </div>
           )}
@@ -193,23 +234,23 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
       )
     },
     {
-      key: 'createdAt',
-      title: 'Created',
-      sortable: true,
-      render: (value) => {
+      accessorKey: 'createdAt',
+      header: 'Created',
+      cell: ({ getValue }) => {
+        const value = getValue() as string;
         const date = new Date(value);
         const isRecent = Date.now() - date.getTime() < 7 * 24 * 60 * 60 * 1000; // 7 days
         
         return (
           <div className="text-sm">
-            <div className={`font-medium ${isRecent ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
+            <div className={`font-medium ${isRecent ? 'text-green-600 dark:text-green-400' : 'text-foreground'}`}>
               {date.toLocaleDateString()}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="text-xs text-muted-foreground">
               {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
             {isRecent && (
-              <Badge variant="outline" className="text-xs mt-1 bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
+              <Badge variant="outline" className="text-xs mt-1 bg-green-500/10 text-green-600 border-green-500/20 dark:text-green-400">
                 New
               </Badge>
             )}
@@ -217,48 +258,7 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
         );
       }
     },
-    {
-      key: 'actions',
-      title: '',
-      width: 'w-[50px]'
-    }
-  ], []);
-
-  const rowActions: DataTableAction<User>[] = useMemo(() => [
-    {
-      label: 'Manage Roles (Full)',
-      icon: Shield,
-      onClick: (user) => {
-        router.push(`/admin/users/roles/manage?userId=${user.id}`);
-      },
-      variant: 'default'
-    },
-    {
-      label: 'Edit User',
-      icon: Edit,
-      onClick: handleEditUser
-    },
-    {
-      label: 'Send Email',
-      icon: Mail,
-      onClick: (user) => {
-        window.open(`mailto:${user.email}`, '_blank');
-      }
-    },
-    {
-      label: 'Toggle Status',
-      icon: UserCheck,
-      onClick: handleStatusToggle,
-      variant: 'default'
-    },
-    {
-      label: 'Delete User',
-      icon: Trash2,
-      variant: 'destructive',
-      onClick: handleDeleteUser,
-      loading: (user: User) => deleteLoading === user.id
-    }
-  ], [handleEditUser, handleStatusToggle, handleDeleteUser, deleteLoading, router]);
+  ];
 
   const handleAddUser = useCallback(() => {
     handleCreateUser();
@@ -304,44 +304,19 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-            <Users className="h-5 w-5 text-slate-700 dark:text-slate-300" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              User Management
-            </h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Manage all users in your application
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Filter className="h-4 w-4 mr-1" />
-            Filter
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-1" />
-            Export
-          </Button>
-          <Button onClick={handleAddUser} size="sm">
-            <UserPlus className="h-4 w-4 mr-1" />
-            Add User
-          </Button>
-        </div>
-      </div>
-
+      <HeaderComp 
+        onAdd={handleAddUser}
+        title="User Management"
+        description="Manage your users effectively"
+        btnAdd="Add User"
+      />
+      
       <DataTable
         data={users}
         columns={columns}
         searchPlaceholder="Search users by name, email, or code..."
-        rowActions={rowActions}
-        onAdd={handleAddUser}
-        addButtonText="Add User"
+        bulkActions={bulkActions}
+        isLoading={loading}
       />
     </div>
   );

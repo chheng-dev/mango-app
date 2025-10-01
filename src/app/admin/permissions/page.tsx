@@ -34,7 +34,7 @@ export default function PermissionsPage() {
   } = usePermissionsPage();
 
   // Use the separated table configuration
-  const { columns, actions } = usePermissionsTableConfig({
+  const { columns } = usePermissionsTableConfig({
     onViewPermission: handleViewPermission,
     onEditPermission: handleEditPermission,
     onDeletePermission: handleDeletePermission,
@@ -54,14 +54,7 @@ export default function PermissionsPage() {
         data={permissions}
         columns={columns}
         searchPlaceholder="Search permissions by name, resource, or action..."
-        rowActions={actions}
-        onAdd={handleCreatePermission}
-        addButtonText="Add Permission"
         isLoading={loading}
-        skeletonRows={6}
-        emptyTitle="No permissions found"
-        emptyDescription="Start by creating your first permission to manage access controls."
-        emptyIcon={Shield}
       />
 
       {/* View Permission Modal */}

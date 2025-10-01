@@ -3,14 +3,19 @@
 import { useAuth } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect, ReactNode } from 'react';
-import { GlobalLoading } from '@/components/ui/loading';
+import { PageSkeleton } from '@/components/ui/page-skeleton';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   redirectTo?: string;
+  skeletonVariant?: 'dashboard' | 'table' | 'form' | 'profile';
 }
 
-export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRouteProps) {
+export function ProtectedRoute({ 
+  children, 
+  redirectTo = '/login',
+  skeletonVariant = 'dashboard'
+}: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, isInitialized } = useAuth();
   const router = useRouter();
 
@@ -22,12 +27,20 @@ export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRou
     }
   }, [isAuthenticated, isLoading, isInitialized, router, redirectTo]);
 
-  if (isLoading) {
-    return <GlobalLoading message="Verifying access..." />;
+  if (isLoading || !isInitialized) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PageSkeleton variant={skeletonVariant} />
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
-    return <GlobalLoading message="Redirecting to login..." />;
+    return (
+      <div className="min-h-screen bg-background">
+        <PageSkeleton variant={skeletonVariant} />
+      </div>
+    );
   }
 
   return <>{children}</>;
@@ -35,11 +48,17 @@ export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRou
 
 export function withProtectedRoute<P extends object>(
   Component: React.ComponentType<P>,
-  redirectTo?: string
+  options?: {
+    redirectTo?: string;
+    skeletonVariant?: 'dashboard' | 'table' | 'form' | 'profile';
+  }
 ) {
   return function ProtectedComponent(props: P) {
     return (
-      <ProtectedRoute redirectTo={redirectTo}>
+      <ProtectedRoute 
+        redirectTo={options?.redirectTo}
+        skeletonVariant={options?.skeletonVariant}
+      >
         <Component {...props} />
       </ProtectedRoute>
     );
