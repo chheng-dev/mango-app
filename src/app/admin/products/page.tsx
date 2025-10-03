@@ -1,10 +1,11 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { DataTable, Column, DataTableAction } from '@/components/ui/data-table';
+import { DataTable} from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Star, Eye, Edit, Trash2 } from 'lucide-react';
+import { ColumnDef } from '@tanstack/react-table';
 
 interface Product {
   id: number;
@@ -110,121 +111,8 @@ const products: Product[] = [
 ];
 
 export default function ProductsPage() {
-  const columns: Column<Product>[] = [
-    {
-      key: 'name',
-      title: 'Product Name',
-      sortable: true,
-      render: (value, item) => (
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 rounded-lg">
-            <AvatarImage src={item.image} alt={item.name} />
-            <AvatarFallback className="rounded-lg">
-              {item.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="font-medium">{item.name}</div>
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'price',
-      title: 'Price',
-      sortable: true,
-      render: (value) => (
-        <div className="font-medium">{value}</div>
-      )
-    },
-    {
-      key: 'category',
-      title: 'Category',
-      sortable: true,
-      render: (value) => (
-        <div className="text-muted-foreground">{value}</div>
-      )
-    },
-    {
-      key: 'stock',
-      title: 'Stock',
-      sortable: true,
-      render: (value) => (
-        <div className="text-center">{value}</div>
-      )
-    },
-    {
-      key: 'sku',
-      title: 'SKU',
-      render: (value) => (
-        <div className="font-mono text-sm">{value}</div>
-      )
-    },
-    {
-      key: 'rating',
-      title: 'Rating',
-      sortable: true,
-      render: (value) => (
-        <div className="flex items-center gap-1">
-          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-          <span className="font-medium">{value}</span>
-        </div>
-      )
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      sortable: true,
-      render: (value) => {
-        const variant = value === 'Active' 
-          ? 'default' 
-          : value === 'Out Of Stock' 
-          ? 'secondary' 
-          : 'destructive';
-        
-        const className = value === 'Active'
-          ? 'bg-green-100 text-green-800 hover:bg-green-100'
-          : value === 'Out Of Stock'
-          ? 'bg-orange-100 text-orange-800 hover:bg-orange-100'
-          : 'bg-red-100 text-red-800 hover:bg-red-100';
-
-        return (
-          <Badge variant={variant} className={className}>
-            {value}
-          </Badge>
-        );
-      }
-    },
-    {
-      key: 'actions',
-      title: '',
-      width: 'w-[50px]'
-    }
-  ];
-
-  const rowActions: DataTableAction<Product>[] = [
-    {
-      label: 'View Details',
-      icon: Eye,
-      onClick: (product) => {
-        console.log('View product:', product);
-      }
-    },
-    {
-      label: 'Edit Product',
-      icon: Edit,
-      onClick: (product) => {
-        console.log('Edit product:', product);
-      }
-    },
-    {
-      label: 'Delete Product',
-      icon: Trash2,
-      variant: 'destructive',
-      onClick: (product) => {
-        console.log('Delete product:', product);
-      }
-    }
+  const columns: ColumnDef<Product>[] = [
+   
   ];
 
   const handleAddProduct = () => {
@@ -249,9 +137,6 @@ export default function ProductsPage() {
           title="Product Management"
           description="A list of all products in your inventory"
           searchPlaceholder="Search products..."
-          rowActions={rowActions}
-          onAdd={handleAddProduct}
-          addButtonText="Add Product"
         />
       </div>
     </ProtectedRoute>

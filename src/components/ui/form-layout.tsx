@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Home, ChevronRight, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '../share/page-header';
 
 interface BreadcrumbItem {
   label: string;
@@ -18,6 +19,8 @@ interface FormLayoutProps {
   subtitle?: string;
   breadcrumbs?: BreadcrumbItem[];
   onBack?: () => void;
+  onHandleAction?: () => void;
+  btnAction?: string;
   children: React.ReactNode;
   className?: string;
 }
@@ -27,19 +30,35 @@ export function FormLayout({
   subtitle,
   breadcrumbs,
   onBack,
+  onHandleAction,
+  btnAction = "Save",
   children,
-  className
+  className,
 }: FormLayoutProps) {
+  const handleAction = () => {
+    console.log('Action button clicked!');
+    if (onHandleAction) {
+      onHandleAction();
+    } else {
+      console.warn('onHandleAction is not defined');
+    }
+  };
+
   return (
     <div className={cn("min-h-screen bg-muted/20", className)}>      
       <div className="w-full mx-auto">
+        <PageHeader 
+          title={title}
+          onBack={onBack}
+          onAction={handleAction}
+          btnAction={btnAction}
+        />
         {children}
       </div>
     </div>
   );
 }
 
-// Reusable Form Section Component
 interface FormSectionProps {
   title: string;
   description?: string;
@@ -157,7 +176,6 @@ export function FormActions({ children, className, align = 'right' }: FormAction
   );
 }
 
-// Two Column Layout (like TailAdmin Default Inputs | Input Group)
 interface FormColumnsProps {
   children: React.ReactNode;
   className?: string;
@@ -171,7 +189,6 @@ export function FormColumns({ children, className }: FormColumnsProps) {
   );
 }
 
-// Input Group Component (like the right side of TailAdmin)
 interface InputGroupProps {
   title: string;
   description?: string;

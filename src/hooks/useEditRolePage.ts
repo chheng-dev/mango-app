@@ -73,6 +73,10 @@ export function useEditRolePage() {
     router.push('/admin/roles');
   };
 
+  const handleAction = () => {
+
+  };
+
   // Prepare initial form data
   const initialData = role ? {
     name: role.name,
@@ -97,6 +101,7 @@ export function useEditRolePage() {
     handleSubmit,
     handleCancel,
     handleBack,
+    handleAction,
     
     // Mutation state
     isUpdating: updateRoleMutation.isPending,

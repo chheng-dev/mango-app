@@ -10,7 +10,7 @@ export class RoleController extends ModelController<RoleSelect, RoleInsert, Role
 
   async getRoleBySlug(slug: string): Promise<ApiResponse<RoleSelect>> {
     const result = await this.model.findByField('slug', slug);
-    return this.convertResponse<RoleSelect>(result);
+    return this.convertResponse<RoleSelect>(result as any);
   }
 
   async getRoleWithPermissions(id: number): Promise<ApiResponse<RoleSelect & { permissions: string[] }>> {

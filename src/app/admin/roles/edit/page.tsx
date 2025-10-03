@@ -1,65 +1,60 @@
 'use client';
 
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { RoleForm } from '@/components/forms/RoleForm';
-import { PageLoading } from '@/components/ui/loading';
-import { useEditRolePage } from '@/hooks/useEditRolePage';
-import { EditRolePageHeader } from '@/components/admin/roles/EditRolePageHeader';
+import { RoleForm, type RoleFormRef } from '@/components/forms/RoleForm';
+import { PageHeader } from '@/components/share/page-header';
+import { toast } from 'sonner';
 
 export default function EditRolePage() {
-  const {
-    role,
-    permissions,
-    loading,
-    saving,
-    roleError,
-    permissionsError,
-    initialData,
-    handleSubmit,
-    handleCancel,
-    handleBack
-  } = useEditRolePage();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const formRef = useRef<RoleFormRef>(null);
+  
+  const roleId = searchParams.get('id');
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-6xl mx-auto p-6">
-          <PageLoading message="Loading role details..." />
-        </div>
-      </div>
-    );
-  }
+  const handleSuccess = (role: any) => {
+    console.log('Role updated successfully:', role);
+    router.push('/admin/roles');
+  };
 
-  if (roleError || permissionsError) {
+  const handleCancel = () => {
+    router.push('/admin/roles');
+  };
+
+  const handleBack = () => {
+    router.back();
+  };
+
+  const handleOnActionSubmit = async () => {
+    if (formRef.current) {
+      const isFormValid = await formRef.current.triggerValidation();
+      
+      if (!isFormValid) {
+        return;
+      }
+      
+      if (!formRef.current.isDirty) {
+        toast.info('No changes to save.');
+        return;
+      }
+
+      formRef.current.submit();
+    }
+  };
+
+  if (!roleId) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container max-w-6xl mx-auto p-6">
           <div className="text-center py-12">
             <h2 className="text-xl font-semibold text-muted-foreground">
-              {roleError ? 'Role not found' : 'Failed to load permissions'}
+              Invalid Role ID
             </h2>
             <p className="text-sm text-muted-foreground mt-2">
-              {roleError ? 'The role you\'re looking for doesn\'t exist' : 'Please try refreshing the page'}
+              Please provide a valid role ID to edit.
             </p>
-            <Button 
-              onClick={handleBack} 
-              variant="outline" 
-              className="mt-4"
-            >
-              Back to Roles
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!role) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-6xl mx-auto p-6">
-          <div className="text-center py-12">
-            <h2 className="text-xl font-semibold text-muted-foreground">Role not found</h2>
             <Button 
               onClick={handleBack} 
               variant="outline" 
@@ -75,19 +70,21 @@ export default function EditRolePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-6xl mx-auto p-6">
-        <EditRolePageHeader onBack={handleBack} />
+      <PageHeader 
+        title="Edit Role"
+        onBack={handleBack} 
+        btnAction="Update"
+        onAction={handleOnActionSubmit}
+      />
 
-        {initialData && (
-          <RoleForm
-            mode="edit"
-            initialData={initialData}
-            permissions={permissions}
-            onSubmit={handleSubmit}
-            saving={saving}
-            onCancel={handleCancel}
-          />
-        )}
+      <div className="container max-w-6xl mx-auto">
+        <RoleForm
+          ref={formRef}
+          roleId={roleId}
+          mode="edit"
+          onSuccess={handleSuccess}
+          onCancel={handleCancel}
+        />
       </div>
     </div>
   );

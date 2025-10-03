@@ -47,6 +47,10 @@ export function useRolesPage() {
     router.push(`/admin/roles/edit?id=${role.id}`);
   }, [router]);
 
+const handleRowClick = (role: any, event?: React.MouseEvent) => {
+  router.push(`/admin/roles/edit?id=${role.id}`);
+}
+
   // Delete handler
   const handleDeleteRole = useCallback(async (role: Role) => {
     const confirmMessage = `Delete Role: ${role.name}
@@ -107,6 +111,7 @@ Role Details:
     handleDeleteRole,
     handleAssignUsers,
     handleManagePermissions,
+    handleRowClick,
     fetchRoles
   };
 }

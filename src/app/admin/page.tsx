@@ -118,7 +118,7 @@ export default function AdminPage() {
   return (
     <div className="space-y-8">
       {/* Clean Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
             <BarChart3 className="h-5 w-5 text-slate-700 dark:text-slate-300" />

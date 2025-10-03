@@ -30,20 +30,16 @@ class PermissionsAPI {
     const response = await fetch(`/api/users/${userId}/permissions`);
     
     if (!response.ok) {
-      console.error('❌ API request failed:', response.status, response.statusText);
       throw new Error(`Failed to fetch permissions: ${response.statusText}`);
     }
 
     const result = await response.json();
     
     if (!result.success) {
-      console.error('❌ API returned error:', result.error);
       throw new Error(result.error || 'Failed to fetch permissions');
     }
 
-    const transformedData = this.transformPermissionData(result);
-    console.log('✅ Transformed permission data:', transformedData);
-    
+    const transformedData = this.transformPermissionData(result);    
     return transformedData;
   }
 
@@ -106,12 +102,6 @@ class PermissionChecker {
 export function usePermissions(): UsePermissionsReturn {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
-  console.log('🔑 usePermissions called:', { 
-    userId: user?.id, 
-    isAuthenticated, 
-    authLoading 
-  });
-
   const query = useQuery({
     queryKey: queryKeys.auth.permissions(user?.id || 0),
     queryFn: () => {
@@ -144,7 +134,6 @@ export function usePermissions(): UsePermissionsReturn {
     isError,
     hasPermission: (requiredPermissions) => {
       const result = checker.hasPermission(requiredPermissions);
-      console.log('🔐 Permission check:', { requiredPermissions, result, userHasId: !!user?.id });
       return result;
     },
     canPerformAction: (resource, action) => checker.canPerformAction(resource, action),

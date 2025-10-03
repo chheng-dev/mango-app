@@ -1,8 +1,3 @@
-/**
- * Client-side User API Service
- * This service makes HTTP requests to your API endpoints
- */
-
 export interface UserFilters {
   search?: string;
   status?: 'active' | 'inactive';
@@ -32,8 +27,11 @@ export interface CreateUserData {
   code: string;
   password: string;
   passwordConfirmation: string;
+  passwordHash?: string;
   phoneNumber?: string;
-  dob?: string; // ISO string for API
+  dob?: string;
+  isActive?: boolean;
+  isVerified?: boolean;
 }
 
 export interface ApiResponse<T> {
