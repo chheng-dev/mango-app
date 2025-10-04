@@ -14,7 +14,7 @@ interface HeaderCompProps {
 
 export function HeaderComp({ onAdd, onExport, title, description, btnAdd }: HeaderCompProps) {
   return (
-    <div className="flex items-center justify-between pb-4 border-b px-4">
+    <div className="flex items-center justify-between p-4 border-b">
       <div className="flex items-center gap-3">
         <div>
           <h1 className="text-sm md:text-xl text-foreground">

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DataTable, Column, DataTableAction } from '@/components/ui/data-table';
+import { DataTable } from '@/components/ui/data-table';
 import { RolePermissionModal } from '@/components/ui/role-permission-modal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Settings
 } from 'lucide-react';
+import { ColumnDef } from '@tanstack/react-table';
 
 interface User {
   id: number;
@@ -66,7 +67,6 @@ export function UserRoleManagement({ users, onRefresh, loading = false }: UserRo
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<User[]>(users);
 
-  // Filter users based on search term
   useEffect(() => {
     if (!searchTerm.trim()) {
       setFilteredUsers(users);
@@ -133,17 +133,18 @@ export function UserRoleManagement({ users, onRefresh, loading = false }: UserRo
   };
 
   // Define columns for the data table
-  const columns: Column<User>[] = [
+  const columns: ColumnDef<User>[] = [
     {
-      key: 'name',
-      title: 'User',
-      sortable: true,
-      render: (value, user) => (
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={`/placeholder-${user.id}.jpg`} />
-            <AvatarFallback>
-              {user.name.split(' ').map(n => n[0]).join('')}
+      accessorKey: 'name',
+      header: 'User',
+      cell: (info) => {
+        const user = info.row.original;
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={`/placeholder-${user.id}.jpg`} />
+              <AvatarFallback>
+                {user.name.split(' ').map(n => n[0]).join('')}
             </AvatarFallback>
           </Avatar>
           <div>
@@ -160,15 +161,18 @@ export function UserRoleManagement({ users, onRefresh, loading = false }: UserRo
           </div>
         </div>
       )
+    }
     },
     {
-      key: 'roles',
-      title: 'Roles & Permissions',
-      render: (value, user) => (
-        <div className="space-y-2">
-          {/* Roles */}
-          <div>
-            <div className="text-xs font-medium text-muted-foreground mb-1">Roles</div>
+      accessorKey: 'roles',
+      header: 'Roles & Permissions',
+      cell: (info) => {
+        const user = info.row.original;
+        return (
+          <div className="space-y-2">
+            {/* Roles */}
+            <div>
+              <div className="text-xs font-medium text-muted-foreground mb-1">Roles</div>
             <div className="flex flex-wrap gap-1">
               {user.roles && user.roles.length > 0 ? (
                 user.roles.slice(0, 3).map((role) => (
@@ -197,17 +201,18 @@ export function UserRoleManagement({ users, onRefresh, loading = false }: UserRo
             </Badge>
           </div>
         </div>
-      )
+      )}
     },
     {
-      key: 'isActive',
-      title: 'Status',
-      sortable: true,
-      render: (value, user) => (
-        <div className="space-y-1">
-          <Badge variant={value ? 'default' : 'secondary'}>
-            {value ? 'Active' : 'Inactive'}
-          </Badge>
+      accessorKey: 'isActive',
+      header: 'Status',
+      cell: (info) => {
+        const user = info.row.original;
+        return (
+          <div className="space-y-1">
+            <Badge variant={user.isActive ? 'default' : 'secondary'}>
+              {user.isActive ? 'Active' : 'Inactive'}
+            </Badge>
           <div>
             {user.isVerified ? (
               <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
@@ -222,51 +227,15 @@ export function UserRoleManagement({ users, onRefresh, loading = false }: UserRo
             )}
           </div>
         </div>
-      )
+      )}
     },
     {
-      key: 'createdAt',
-      title: 'Created',
-      sortable: true,
-      render: (value) => (
-        <div className="text-sm">
-          <div>{new Date(value).toLocaleDateString()}</div>
-          <div className="text-xs text-muted-foreground">
-            {new Date(value).toLocaleTimeString()}
-          </div>
-        </div>
-      )
+      accessorKey: 'createdAt',
+      header: 'Created'
     },
     {
-      key: 'actions',
-      title: '',
-      width: 'w-[50px]'
-    }
-  ];
-
-  // Define row actions
-  const rowActions: DataTableAction<User>[] = [
-    {
-      label: 'Manage Roles & Permissions',
-      icon: Shield,
-      onClick: handleManageRoles,
-      variant: 'default'
-    },
-    {
-      label: 'View Details',
-      icon: Eye,
-      onClick: (user) => {
-        // Navigate to user details or open view modal
-        console.log('View user details:', user);
-      }
-    },
-    {
-      label: 'Edit User',
-      icon: Edit,
-      onClick: (user) => {
-        // Navigate to edit user page
-        window.location.href = `/admin/users/edit?id=${user.id}`;
-      }
+      accessorKey: 'actions',
+      header: '',
     }
   ];
 
@@ -365,7 +334,6 @@ export function UserRoleManagement({ users, onRefresh, loading = false }: UserRo
         title="User Role & Permission Management"
         description="Manage user roles and permissions from a centralized dashboard"
         searchPlaceholder="Search users..."
-        rowActions={rowActions}
       />
 
       {/* Role Permission Modal */}

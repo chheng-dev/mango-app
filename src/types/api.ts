@@ -9,6 +9,8 @@ export interface ApiResponse<T> {
     total: number;
     totalPages: number;
   };
+  meta?: Record<string, any>;
+  included?: Record<string, any[]>;
 }
 
 export interface ValidationError {

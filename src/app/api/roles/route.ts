@@ -1,8 +1,8 @@
-import { userController } from '@/lib/controllers/UserController';
+import { roleController } from '@/lib/controllers/RoleController';
 import { NextRequest } from 'next/server';
-import { createUserListHandler } from '@/lib/utils/apiHandlers';
+import { createRoleListHandler } from '@/lib/utils/apiHandlers';
 
-export const GET = createUserListHandler('LIST', async (request) => {
+export const GET = createRoleListHandler('LIST', async (request) => {
   const url = new URL(request.url);
   const params = {
     page: parseInt(url.searchParams.get('page') || '1'),
@@ -12,10 +12,10 @@ export const GET = createUserListHandler('LIST', async (request) => {
     sortOrder: url.searchParams.get('sortOrder') as 'asc' | 'desc' || 'asc'
   };
 
-  return await userController.getAll(params);
+  return await roleController.getAll(params);
 });
 
-export const POST = createUserListHandler('CREATE', async (request) => {
+export const POST = createRoleListHandler('CREATE', async (request) => {
   const data = await request.json();
-  return await userController.create(data);
+  return await roleController.create(data);
 });

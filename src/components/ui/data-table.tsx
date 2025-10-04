@@ -19,7 +19,7 @@ import {
   type CellContext,
   type SortingState,
 } from "@tanstack/react-table"
-import { useEffect, useState, useCallback } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import { Search, ChevronUp, ChevronDown, MoreHorizontal, Calendar, SlidersHorizontal, X, CheckCircle, XCircle, Trash2, SlidersHorizontalIcon } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -85,7 +85,7 @@ type DataTableProps<TData, TValue> = {
       onClick: () => void
     }
   }
-  onRowClick?: (row: TData) => void
+  onRowClick?: (row: TData, event: React.MouseEvent) => void
   rowClickable?: boolean,
   isSearchEnabled?: boolean
   // Bulk Actions
@@ -200,7 +200,7 @@ export function DataTable<TData, TValue>({
         const isIndeterminate = selectedRows.length > 0 && selectedRows.length < data.length;
         
         return (
-          <div className="flex items-center">
+          <div className="flex items-center" data-prevent-row-click>
             <Checkbox
               checked={isAllSelected}
               // @ts-ignore
@@ -210,6 +210,7 @@ export function DataTable<TData, TValue>({
               className={`data-[state=checked]:bg-primary data-[state=checked]:border-primary ${
                 isIndeterminate ? 'data-[state=unchecked]:bg-primary/20 data-[state=unchecked]:border-primary' : ''
               }`}
+              onClick={(e) => e.stopPropagation()}
             />
           </div>
         );
@@ -218,12 +219,13 @@ export function DataTable<TData, TValue>({
         const isSelected = isRowSelected(row.original);
         
         return (
-          <div className="flex items-center">
+          <div className="flex items-center" data-prevent-row-click>
             <Checkbox
               checked={isSelected}
               onCheckedChange={(checked) => handleSelectRow(row.original, !!checked)}
               aria-label={`Select row`}
               className="data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-colors"
+              onClick={(e) => e.stopPropagation()}
             />
           </div>
         );
@@ -240,7 +242,7 @@ export function DataTable<TData, TValue>({
       cell: (context: CellContext<TData, any>) => {
         const row = context.row;
         return (
-          <div className="text-right" onClick={(e) => e.stopPropagation()}>
+          <div className="text-right" data-prevent-row-click onClick={(e) => e.stopPropagation()}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -481,7 +483,17 @@ export function DataTable<TData, TValue>({
                             className={`border-b border-border/50 transition-all duration-200 hover:bg-muted/30 data-[state=selected]:bg-muted/50 ${
                               rowClickable || onRowClick ? 'cursor-pointer hover:shadow-sm' : ''
                             } ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary/50' : ''}`}
-                            onClick={() => onRowClick?.(row.original)}
+                            onClick={(event) => {
+                              // Prevent row click if clicking on interactive elements
+                              const target = event.target as HTMLElement;
+                              const isInteractiveElement = target.closest('button, input, [role="checkbox"], a, select, textarea') ||
+                                                          target.getAttribute('role') === 'checkbox' ||
+                                                          target.closest('[data-prevent-row-click]');
+                              
+                              if (!isInteractiveElement) {
+                                onRowClick?.(row.original, event);
+                              }
+                            }}
                           >
                             {row.getVisibleCells().map(cell => (
                               <TableCell key={cell.id} className="px-2 md:px-4 py-2 md:py-3 text-xs">

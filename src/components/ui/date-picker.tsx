@@ -13,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import formatDate, { parseDate } from "@/lib/utils/date"
+import { toast } from "sonner"
 
 function isValidDate(date: Date | undefined) {
   return !!date && !isNaN(date.getTime())
@@ -36,7 +37,26 @@ export function DatePicker({
   isRequired = false,
 }: Props) {
 
-  const parsedDate = value ? new Date(value) : undefined
+  const parsedDate = React.useMemo(() => {
+    if (!value) return undefined;
+    
+    try {
+      if (value instanceof Date) {
+        return isValidDate(value) ? value : undefined;
+      }
+      
+      if (typeof value === 'string') {
+        const date = new Date(value);
+        return isValidDate(date) ? date : undefined;
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.warn('Date parsing error:', error);
+      return undefined;
+    }
+  }, [value]);
+
   const validDate = parsedDate && isValidDate(parsedDate) ? parsedDate : new Date()
 
   const [lastValidDate, setLastValidDate] = React.useState<Date>(validDate)

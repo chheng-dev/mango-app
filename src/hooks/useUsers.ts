@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { userApiService } from '@/lib/api/userApiService';
 import type { User, CreateUserData, UserFilters, ApiResponse } from '@/lib/api/userApiService';
+import { UserFormData } from '@/components/forms/UserForm';
+import { useForm } from 'react-hook-form';
 
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
@@ -13,6 +15,11 @@ export function useUsers() {
     totalPages: 0,
   });
   const [filters, setFilters] = useState<UserFilters>({});
+
+  const {
+    register,
+    handleSubmit,
+  } = useForm<UserFormData>();
 
   // Fetch users
   const fetchUsers = useCallback(async (newFilters?: UserFilters) => {
@@ -161,6 +168,10 @@ export function useUsers() {
     fetchUsers();
   }, [fetchUsers]);
 
+  const onFormSubmit = handleSubmit(async (data: UserFormData) => {
+    await createUser(data as CreateUserData);
+  });
+
   return {
     users,
     loading,
@@ -175,5 +186,6 @@ export function useUsers() {
     updateFilters,
     clearFilters,
     clearError,
+    handleSubmit: onFormSubmit,
   };
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { DataTable } from '@/components/ui/data-table';
-import { Shield } from 'lucide-react';
 import { useRolesPage } from '@/hooks/useRolesPage';
 import { useRolesTableConfig } from '@/components/admin/roles/RolesTableConfig';
 import { HeaderComp } from '@/components/share/header-comp';
@@ -12,6 +11,7 @@ export default function RolesManagementPage() {
     loading,
     handleCreateRole,
     handleEditRole,
+    handleRowClick,
     handleViewRole,
     handleDeleteRole,
     handleAssignUsers,
@@ -27,7 +27,16 @@ export default function RolesManagementPage() {
     onManagePermissions: handleManagePermissions,
     deleteLoading
   });
-  
+
+  const bulkActions = {
+    actions: [
+      {
+        label: 'Delete',
+        onClick: handleDeleteRole,
+        isLoading: deleteLoading
+      },
+    ]
+  }
 
   return (
     <div className="space-y-6">
@@ -39,6 +48,8 @@ export default function RolesManagementPage() {
       />
       <DataTable
         data={roles}
+        bulkActions={bulkActions as any}
+        onRowClick={handleRowClick}
         columns={columns}
         searchPlaceholder="Search roles by name, slug, or description..."
         isLoading={loading}

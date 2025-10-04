@@ -1,56 +1,73 @@
-"use client";
+'use client';
 
 import { useState } from "react";
 import { FieldErrors } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FormSection, FormField, FormGrid } from "@/components/ui/form-layout";
-import { Shield, Eye, EyeOff } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Shield, 
+  Eye, 
+  EyeOff,
+  AlertCircle,
+  Lock
+} from "lucide-react";
 import { UserFormData } from "./BasicInformationSection";
+import { cn } from "@/lib/utils";
 
 interface SecuritySettingsSectionProps {
   mode: "create" | "edit";
   register: any;
   errors: FieldErrors<UserFormData>;
-  watchedValues: UserFormData;
+  formData: UserFormData;
 }
 
 export function SecuritySettingsSection({
   mode,
   register,
   errors,
-  watchedValues,
+  formData,
 }: SecuritySettingsSectionProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
   return (
-    <FormSection
-      title="Security Settings"
-      description={
-        mode === "edit"
-          ? "Leave password fields empty to keep current password"
-          : "Set up authentication credentials"
-      }
-    >
-      <FormGrid columns={2}>
-        <FormField
-          label="Password"
-          required={mode === "create"}
-          error={errors.password?.message}
-          description={
-            mode === "create"
-              ? "Choose a strong password"
-              : "Enter new password to change"
-          }
-        >
-          <div className="relative">
-            <Shield className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+    <>
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Lock className="h-5 w-5 text-primary" />
+          <h3 className="text-lg font-semibold">Security Settings</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {mode === "edit"
+            ? "Leave password fields empty to keep current password"
+            : "Set up authentication credentials"}
+        </p>
+      </div>
+
+      <Separator className="my-6" />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-3">
+          <Label htmlFor="password" className="text-sm font-semibold flex items-center gap-2">
+            <div className="w-1 h-4 bg-primary rounded-full"></div>
+            Password
+            {mode === "create" && <span className="text-destructive text-lg">*</span>}
+          </Label>
+          <div className="relative group">
+            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              id="password"
               type={showPassword ? "text" : "password"}
+              {...register('password')}
               placeholder="••••••••"
-              {...register("password")}
-              className="pl-10 pr-10"
+              className={cn(
+                "transition-all duration-300 text-base h-12 pl-10 pr-12",
+                "focus:ring-2 focus:ring-primary/20 focus:border-primary",
+                "group-hover:border-primary/50",
+                errors.password && "border-destructive focus-visible:ring-destructive/20 bg-destructive/5"
+              )}
             />
             <Button
               type="button"
@@ -66,21 +83,38 @@ export function SecuritySettingsSection({
               )}
             </Button>
           </div>
-        </FormField>
+          {errors.password && (
+            <div className="flex items-center gap-2 text-sm text-destructive animate-in slide-in-from-left duration-200">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span className="break-words">{errors.password.message}</span>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {mode === "create" 
+              ? "Must be 8+ chars with uppercase, lowercase, and number"
+              : "Enter new password to change (8+ chars, mixed case, number)"}
+          </p>
+        </div>
 
-        <FormField
-          label="Confirm Password"
-          required={mode === "create" || !!watchedValues.password}
-          error={errors.passwordConfirmation?.message}
-          description="Re-enter the password to confirm"
-        >
-          <div className="relative">
-            <Shield className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <div className="space-y-3">
+          <Label htmlFor="passwordConfirmation" className="text-sm font-semibold flex items-center gap-2">
+            <div className="w-1 h-4 bg-orange-500 rounded-full"></div>
+            Confirm Password
+            {(mode === "create" || !!formData.password) && <span className="text-destructive text-lg">*</span>}
+          </Label>
+          <div className="relative group">
+            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              id="passwordConfirmation"
               type={showPasswordConfirm ? "text" : "password"}
+              {...register('passwordConfirmation')}
               placeholder="••••••••"
-              {...register("passwordConfirmation")}
-              className="pl-10 pr-10"
+              className={cn(
+                "transition-all duration-300 text-base h-12 pl-10 pr-12",
+                "focus:ring-2 focus:ring-primary/20 focus:border-primary",
+                "group-hover:border-primary/50",
+                errors.passwordConfirmation && "border-destructive focus-visible:ring-destructive/20 bg-destructive/5"
+              )}
             />
             <Button
               type="button"
@@ -96,8 +130,17 @@ export function SecuritySettingsSection({
               )}
             </Button>
           </div>
-        </FormField>
-      </FormGrid>
-    </FormSection>
+          {errors.passwordConfirmation && (
+            <div className="flex items-center gap-2 text-sm text-destructive animate-in slide-in-from-right duration-200">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span className="break-words">{errors.passwordConfirmation.message}</span>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Re-enter the password to confirm it matches
+          </p>
+        </div>
+      </div>
+    </>
   );
 }

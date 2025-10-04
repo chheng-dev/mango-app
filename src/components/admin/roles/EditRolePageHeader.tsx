@@ -1,25 +1,25 @@
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 
 interface EditRolePageHeaderProps {
   onBack: () => void;
+  onAction: () => void;
+  btnAction: string;
+  title: string | undefined;
 }
 
-export function EditRolePageHeader({ onBack }: EditRolePageHeaderProps) {
+export function EditRolePageHeader({ onBack, onAction, btnAction, title }: EditRolePageHeaderProps) {
   return (
-    <div className="mb-6">
-      <Button
-        variant="ghost"
-        onClick={onBack}
-        className="mb-4"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Roles
-      </Button>
-      <h1 className="text-3xl font-bold tracking-tight">Edit Role</h1>
-      <p className="text-muted-foreground mt-2">
-        Update role details and permissions
-      </p>
+    <div className="flex items-center justify-between p-4 border-b border-muted sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex items-center">
+        <ChevronLeft className="mr-2 h-6 w-6 cursor-pointer hover:text-primary transition-colors" onClick={onBack} />
+        <h1 className="text-lg font-semibold">{title}</h1>
+      </div>
+      <div>
+        <Button size="sm" onClick={onAction}>
+          <span className="text-xs">{btnAction}</span>
+        </Button>
+      </div>
     </div>
   );
 }

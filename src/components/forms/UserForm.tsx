@@ -1,50 +1,30 @@
-"use client";
+'use client';
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import React, { forwardRef, useImperativeHandle, useState } from "react";
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import {
-  BasicInformationSection,
-  DatePickerField,
-  SecuritySettingsSection,
-  AccountStatusSection,
-  FormActionsSection,
-  UserFormData as BaseUserFormData,
-} from "./sections";
-
-// Zod schema for user form validation
-const userFormSchema = z.object({
-  name: z.string().min(1, "Name is required").min(2, "Name must be at least 2 characters"),
-  email: z.string().min(1, "Email is required").email("Invalid email format"),
-  code: z.string().min(1, "Code is required").min(3, "Code must be at least 3 characters"),
-  password: z.string().optional(),
-  passwordConfirmation: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  dob: z.string().optional(),
-  isActive: z.boolean(),
-  isVerified: z.boolean(),
-}).refine((data) => {
-  if (data.password && data.password.length > 0) {
-    if (data.password.length < 6) {
-      return false;
-    }
-    if (data.password !== data.passwordConfirmation) {
-      return false;
-    }
-  }
-  return true;
-}, {
-  message: "Password must be at least 6 characters and passwords must match",
-  path: ["passwordConfirmation"],
-});
-
-export type UserFormData = z.infer<typeof userFormSchema>;
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { DatePicker } from "@/components/ui/date-picker";
+import { 
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  FormDescription,
+} from '@/components/ui/form';
+import { useUserFormWithQuery } from "@/hooks/useUserFormWithQuery";
 
 interface UserFormProps {
-  mode: "create" | "edit";
-  initialData?: Partial<UserFormData>;
-  onSubmit: (data: UserFormData) => Promise<void>;
+  userId?: string | number;
+  mode: 'create' | 'edit';
+  onSuccess?: (user: any) => void;
+  onCancel: () => void;
   onDelete?: () => Promise<void>;
   isLoading?: boolean;
   loading?: boolean; 
@@ -52,109 +32,346 @@ interface UserFormProps {
   className?: string;
 }
 
-export function UserForm({
+export interface UserFormRef {
+  submit: () => void;
+  triggerValidation: () => Promise<boolean>;
+  isValid: boolean;
+  isDirty: boolean;
+  isSubmitting: boolean;
+}
+
+export const UserForm = forwardRef<UserFormRef, UserFormProps>(({
+  userId,
   mode,
-  initialData,
-  onSubmit,
+  onSuccess,
+  onCancel,
   onDelete,
   isLoading = false,
   loading = false,
   deleteLoading = false,
   className,
-}: UserFormProps) {
-  // Create a dynamic schema based on mode
-  const createFormSchema = () => {
-    if (mode === "create") {
-      return userFormSchema.refine((data) => {
-        if (!data.password || data.password.length < 6) {
-          return false;
-        }
-        if (data.password !== data.passwordConfirmation) {
-          return false;
-        }
-        return true;
-      }, {
-        message: "Password is required and must be at least 6 characters, passwords must match",
-        path: ["password"],
-      });
-    }
-    return userFormSchema;
-  };
+}, ref) => {
 
-  const form = useForm<UserFormData>({
-    resolver: zodResolver(createFormSchema()),
-    defaultValues: {
-      name: initialData?.name || "",
-      email: initialData?.email || "",
-      code: initialData?.code || "",
-      password: "",
-      passwordConfirmation: "",
-      phoneNumber: initialData?.phoneNumber || "",
-      dob: initialData?.dob || "",
-      isActive: initialData?.isActive ?? true,
-      isVerified: initialData?.isVerified ?? false,
-    },
-  });
+  // All hooks must be called before any conditional returns
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
   const {
-    register,
     handleSubmit,
-    watch,
-    setValue,
-    getValues,
-    formState: { errors, isSubmitting },
-  } = form;
+    isSubmitting,
+    isValid,
+    isDirty,
+    isLoadingUser,
+    form,
+  } = useUserFormWithQuery({ 
+    userId, 
+    mode, 
+    onSuccess,
+    onError: (error) => console.error('User form error:', error)
+  });
 
-  const watchedValues = watch();
+  useImperativeHandle(ref, () => ({
+    submit: () => {
+      handleSubmit();
+    },
+    triggerValidation: async () => {
+      return await form.trigger();
+    },
+    isValid,
+    isDirty,
+    isSubmitting,
+  }), [handleSubmit, form, isValid, isDirty, isSubmitting]);
 
-  const onSubmitForm = async (data: UserFormData) => {
-    try {
-      await onSubmit(data);
-    } catch (error) {
-      console.error("Form submission error:", error);
-    }
-  };
+  if (isLoadingUser) {
+    return (
+      <div className="w-full mx-auto p-6 space-y-8">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <form onSubmit={handleSubmit(onSubmitForm)} className={cn("space-y-8", className)}>
-      {/* Basic Information Section */}
-      <BasicInformationSection
-        register={register}
-        errors={errors}
-        watchedValues={watchedValues}
-        setValue={setValue}
-      />
+    <div className="w-full mx-auto p-6 space-y-8">
+      <Form {...form}>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>Full Name <span className="text-red-500">*</span></FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="e.g., John Doe"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <FormDescription>Enter the user's full name</FormDescription>
+                </FormItem>
+              )}
+            />
 
-      {/* Date Picker Field */}
-      <DatePickerField
-        errors={errors}
-        watchedValues={watchedValues}
-        setValue={setValue}
-      />
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>User Code <span className="text-red-500">*</span></FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="USR001"
+                      className="uppercase"
+                      onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <FormDescription>Unique identifier for the user</FormDescription>
+                </FormItem>
+              )}
+            />
+          </div>
 
-      {/* Security Settings Section */}
-      <SecuritySettingsSection
-        mode={mode}
-        register={register}
-        errors={errors}
-        watchedValues={watchedValues}
-      />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>Email Address <span className="text-red-500">*</span></FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      placeholder="john@example.com"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <FormDescription>User's primary email address</FormDescription>
+                </FormItem>
+              )}
+            />
 
-      {/* Account Status Section */}
-      <AccountStatusSection
-        watchedValues={watchedValues}
-        setValue={setValue}
-      />
+            <FormField
+              control={form.control}
+              name="phoneNumber"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>Phone Number</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="+1 (555) 123-4567"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <FormDescription>Optional contact number</FormDescription>
+                </FormItem>
+              )}
+            />
+          </div>
 
-      {/* Form Actions */}
-      <FormActionsSection
-        mode={mode}
-        onDelete={onDelete}
-        isLoading={isLoading}
-        loading={loading}
-        deleteLoading={deleteLoading}
-        isSubmitting={isSubmitting}
-      />
-    </form>
+          <FormField
+            control={form.control}
+            name="dob"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormControl>
+                  <DatePicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    dateLabel="Date of Birth"
+                    placeholder="Select date of birth"
+                    isRequired={false}
+                  />
+                </FormControl>
+                <FormMessage />
+                <FormDescription>User's date of birth (optional)</FormDescription>
+              </FormItem>
+            )}
+          />
+
+          <Separator className="my-6" />
+
+          {/* Security Settings */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>
+                    Password 
+                    {mode === "create" && <span className="text-red-500">*</span>}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                  <FormDescription>
+                    {mode === "create" 
+                      ? "Must be 8+ chars with uppercase, lowercase, and number"
+                      : "Enter new password to change"}
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="passwordConfirmation"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>
+                    Confirm Password
+                    {mode === "create" && <span className="text-red-500">*</span>}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showPasswordConfirm ? "text" : "password"}
+                        placeholder="••••••••"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3"
+                        onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
+                      >
+                        {showPasswordConfirm ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                  <FormDescription>Re-enter the password to confirm</FormDescription>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <Separator className="my-6" />
+
+          {/* Account Status */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <FormField
+              control={form.control}
+              name="isActive"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Account Status</FormLabel>
+                  <FormControl>
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="space-y-1">
+                        <span className="font-medium text-sm">
+                          {field.value ? 'Active' : 'Inactive'}
+                        </span>
+                        <p className="text-xs text-muted-foreground">
+                          {field.value
+                            ? "User can log in and access the system"
+                            : "User cannot log in"}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="isVerified"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Verification Status</FormLabel>
+                  <FormControl>
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="space-y-1">
+                        <span className="font-medium text-sm">
+                          {field.value ? 'Verified' : 'Unverified'}
+                        </span>
+                        <p className="text-xs text-muted-foreground">
+                          {field.value
+                            ? "Email address has been verified"
+                            : "Email verification pending"}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <Separator className="my-6" />
+
+          {/* Form Actions */}
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting || !isValid}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {mode === 'edit' ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                mode === 'edit' ? 'Update User' : 'Create User'
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
   );
-}
+});
+
+UserForm.displayName = "UserForm";

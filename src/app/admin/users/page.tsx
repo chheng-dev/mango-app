@@ -1,7 +1,6 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -12,13 +11,9 @@ import {
   Shield, 
   AlertTriangle, 
   Users, 
-  UserPlus,
-  Filter,
-  Download,
   CheckCircle,
   XCircle,
-  Grid2X2PlusIcon,
-  Plus
+  UserPlus,
 } from 'lucide-react';
 import { useUsers } from '@/hooks/useUsers';
 import { User } from '@/lib/api/userApiService';
@@ -101,7 +96,6 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
     }
   }, [updateUserStatus]);
 
-  // Bulk actions for DataTable
   const bulkActions = {
     actions: [
       {
@@ -156,21 +150,9 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
               <div className="font-semibold truncate text-foreground">
-                {row.original.name || 'Unknown User'}
+                {row.original.name}
               </div>
-              <Badge variant="outline" className="text-xs font-mono">
-                {row.original.code}
-              </Badge>
             </div>
-            <div className="text-sm text-muted-foreground truncate">
-              {row.original.email}
-            </div>
-            {row.original.phoneNumber && (
-              <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                <span>📞</span>
-                <span>{row.original.phoneNumber}</span>
-              </div>
-            )}
           </div>
         </div>
       )
@@ -194,7 +176,6 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
             )}
           </div>
           
-          {/* Verification Status */}
           <div>
             {row.original.isVerified ? (
               <Badge variant="default" className="bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 dark:text-blue-400 text-xs">
@@ -264,44 +245,6 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
     handleCreateUser();
   }, [handleCreateUser]);
 
-  const totalUsers = users.length;
-  const activeUsers = users.filter(user => user.isActive).length;
-  const verifiedUsers = users.filter(user => user.isVerified).length;
-  const recentUsers = users.filter(user => {
-    if (!user.createdAt) return false;
-    const createdDate = new Date(user.createdAt);
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    return createdDate > sevenDaysAgo;
-  }).length;
-
-  const stats = [
-    {
-      title: 'Total Users',
-      value: totalUsers.toString(),
-      description: 'All registered users',
-      icon: Users,
-    },
-    {
-      title: 'Active Users',
-      value: activeUsers.toString(),
-      description: `${totalUsers > 0 ? ((activeUsers / totalUsers) * 100).toFixed(1) : 0}% of total`,
-      icon: UserCheck,
-    },
-    {
-      title: 'Verified Users',
-      value: verifiedUsers.toString(),
-      description: `${totalUsers > 0 ? ((verifiedUsers / totalUsers) * 100).toFixed(1) : 0}% verified`,
-      icon: Shield,
-    },
-    {
-      title: 'Recent Users',
-      value: recentUsers.toString(),
-      description: 'New this week',
-      icon: UserPlus,
-    },
-  ];
-
   return (
     <div className="space-y-6">
       <HeaderComp 
@@ -316,6 +259,7 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
         columns={columns}
         searchPlaceholder="Search users by name, email, or code..."
         bulkActions={bulkActions}
+        onRowClick={handleEditUser}
         isLoading={loading}
       />
     </div>
