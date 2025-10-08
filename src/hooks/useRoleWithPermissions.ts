@@ -1,5 +1,5 @@
+import roleApiService from '@/lib/api/roleApiService';
 import { useQuery } from '@tanstack/react-query';
-import { roleApiService, type Role } from '@/lib/api/roleApiService';
 
 interface UseRoleWithPermissionsProps {
   roleId?: string | number;

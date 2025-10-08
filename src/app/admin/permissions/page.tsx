@@ -65,16 +65,6 @@ export default function PermissionsPage() {
     router.push(`/admin/permissions/edit?id=${permission.id}`);
   }, [router]);
 
-  const handleDeletePermission = useCallback(async (permission: Permission) => {
-    try {
-      await deletePermission(permission.id);
-      // Refresh the permissions list after deletion
-      await fetchPermissions();
-    } catch (error) {
-      console.error('Failed to delete permission:', error);
-    }
-  }, [deletePermission, fetchPermissions]);
-
   return (
     <div className="space-y-6">
       <HeaderComp

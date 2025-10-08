@@ -5,28 +5,11 @@ import {
   Users, 
   AlertTriangle,
 } from 'lucide-react';
-import { Role } from '@/lib/api/roleApiService';
 import { ColumnDef } from '@tanstack/react-table';
 import { humanizeDate } from '@/lib/utils/date';
 
-interface UseRolesTableConfigProps {
-  onViewRole: (role: Role) => void;
-  onEditRole: (role: Role) => void;
-  onDeleteRole: (role: Role) => void;
-  onAssignUsers: (role: Role) => void;
-  onManagePermissions: (role: Role) => void;
-  deleteLoading: number | null;
-}
+export function useRolesTableConfig() {
 
-export function useRolesTableConfig({
-  onViewRole,
-  onEditRole,
-  onDeleteRole,
-  onAssignUsers,
-  onManagePermissions,
-  deleteLoading
-}: UseRolesTableConfigProps) {
-  
   const columns: ColumnDef<any>[] = [
     {
       accessorKey: 'name',
@@ -65,42 +48,34 @@ export function useRolesTableConfig({
       )
     },
     {
-      accessorKey: 'permissions',
+      accessorKey: 'permissionCount',
       header: 'Permissions',
-      cell: (row: any) => (
-        <div className="space-y-1">
-          <div className="flex items-center gap-1">
-            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              {row.permissions?.length || 0} permissions
-            </span>
-          </div>
-          {row.permissions && row.permissions.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {row.permissions.slice(0, 3).map((permission: any) => (
-                <Badge key={permission.id} variant="secondary" className="text-xs">
-                  {permission.slug}
-                </Badge>
-              ))}
-              {row.permissions.length > 3 && (
-                <Badge variant="secondary" className="text-xs">
-                  +{row.permissions.length - 3} more
-                </Badge>
-              )}
+      cell: ({ row }: any) => {        
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">
+                {row.original.permissionCount} permissions
+              </span>
             </div>
-          )}
-        </div>
-      )
+          </div>
+        );
+      }
     },
     {
-      accessorKey: 'userCount',
+      accessorKey: 'usersCount',
       header: 'Users',
-      cell: (row: any) => (
-        <div className="flex items-center gap-1">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm">{row.userCount || 0}</span>
-        </div>
-      )
+      cell: ({ row }: any) => {        
+        return (
+          <div className="flex items-center gap-1">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm">
+              {row.original.userCount}
+            </span>
+          </div>
+        );
+      }
     },
     {
       accessorKey: 'createdAt',

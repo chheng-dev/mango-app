@@ -98,10 +98,8 @@ export function useBaseEntity<
     totalPages: 0,
   });
 
-  // Generate query keys
   const queryKeys = generateQueryKeys<T>(entityName);
 
-  // Fetch items with TanStack Query
   const {
     data: queryData,
     isLoading: loading,

@@ -1,15 +1,10 @@
 import { roleController } from "@/lib/controllers/RoleController";
-import { BaseRoute, createProtectedRoute, handleApiResponse, handleProtectedRoute } from "@/lib/utils/BaseRoute";
+import { BaseRoute, createProtectedRoute, handleApiResponse } from "@/lib/utils/BaseRoute";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-
-type Params = {
-  params: {
-    id: string;
-  };
-}
 
 export const GET  = createProtectedRoute(async (request, { user, params }) => {
   const roleId = Number(params?.id);
+  console.log('roleId:', roleId);
   
   if (isNaN(roleId) || roleId <= 0) {
     return BaseRoute.errorResponse('Invalid role ID', 400);

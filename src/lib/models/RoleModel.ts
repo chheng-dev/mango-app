@@ -54,6 +54,41 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
     );
   }
 
+  async list(params?: { page?: number; limit?: number; search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) {  
+    try {
+      const allRoles = await db
+        .select(
+          {
+            id: roles.id,
+            name: roles.name,
+            slug: roles.slug,
+            permissionCount: sql<number>`COUNT(${rolePermissions.permissionId})`.as('permissionCount'),
+            userCount: sql<number>`(SELECT COUNT(*) FROM ${userRoles} WHERE ${userRoles.roleId} = ${roles.id})`.as('userCount'),
+            description: roles.description,
+            isActive: roles.isActive,
+            createdAt: roles.createdAt,
+            updatedAt: roles.updatedAt,
+          }
+        )
+        .from(roles)
+        .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
+        .leftJoin(userRoles, eq(roles.id, userRoles.roleId))
+        .groupBy(roles.id)
+        .orderBy(roles.createdAt);
+
+      return {
+        success: true,
+        data: allRoles
+      };
+    } catch (error) {
+      console.error('RoleModel list error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch roles'
+      };
+    }
+  }
+  
   async findWithPermissions(roleId: number) {
     try {
       const roleWithPermissions = await db
@@ -86,7 +121,6 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
         };
       }
 
-      // Group permissions by role
       const role = roleWithPermissions[0];
       const groupedPermissions = roleWithPermissions
         .filter(row => row.permissionId !== null)
@@ -370,6 +404,20 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
       return count[0]?.count || 0;
     } catch (error) {
       console.error('RoleModel getPermissionCount error:', error);
+      return 0;
+    }
+  }
+
+  async getUserCount(roleId: number) {  
+    try {
+      const count = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(userRoles)
+        .where(eq(userRoles.roleId, roleId));
+
+      return count[0]?.count || 0;
+    } catch (error) {
+      console.error('RoleModel getUserCount error:', error);
       return 0;
     }
   }

@@ -4,33 +4,6 @@ import { AuthContext } from '../types/auth';
 import { getUserPermissions, getUserRoles } from '../services/rbac-service';
 
 /**
- * Permission constants for RBAC
- */
-export const PERMISSIONS = {
-  // User permissions
-  USERS_READ: 'users:read',
-  USERS_CREATE: 'users:create',
-  USERS_UPDATE: 'users:update',
-  USERS_DELETE: 'users:delete',
-  
-  // Role permissions
-  ROLES_READ: 'roles:read',
-  ROLES_CREATE: 'roles:create',
-  ROLES_UPDATE: 'roles:update',
-  ROLES_DELETE: 'roles:delete',
-  
-  // Permission permissions
-  PERMISSIONS_READ: 'permissions:read',
-  PERMISSIONS_CREATE: 'permissions:create',
-  PERMISSIONS_UPDATE: 'permissions:update',
-  PERMISSIONS_DELETE: 'permissions:delete',
-  
-  // Admin permissions
-  ADMIN_READ: 'admin:read',
-  ADMIN_WRITE: 'admin:write',
-} as const;
-
-/**
  * Authentication and authorization middleware
  */
 export class AuthMiddleware {

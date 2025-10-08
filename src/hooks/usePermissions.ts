@@ -3,7 +3,7 @@ import type { Permission, CreatePermissionData, UpdatePermissionData, Permission
 import { useBaseEntity } from './useBaseEntity';
 
 const permissionApiAdapter = {
-  getAll: (filters?: PermissionFilters) => permissionApiService.getAllPermissions(filters),
+  getAll: (filters?: PermissionFilters) => permissionApiService.getAllPermissions(filters as PermissionFilters),
   getById: (id: number) => permissionApiService.getPermissionById(id),
   create: (data: CreatePermissionData) => permissionApiService.createPermission(data),
   update: (id: number, data: UpdatePermissionData) => permissionApiService.updatePermission(id, data),

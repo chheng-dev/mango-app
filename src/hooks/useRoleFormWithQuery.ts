@@ -8,7 +8,9 @@ import {
   roleFormSchema,
   generateSlugFromName
 } from '@/lib/validations/role';
-import { roleApiService, type Role, type Permission } from '@/lib/api/roleApiService';
+import { Role } from '@/lib/types/role';
+import { Permission } from '@/lib/types/permission';
+import roleApiService from '@/lib/api/roleApiService';
 
 interface UseRoleFormWithQueryProps {
   roleId?: string | number;
