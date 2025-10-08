@@ -1,5 +1,3 @@
-// Centralized permission types to avoid duplication across the app
-
 export interface Permission {
   id: number;
   name: string;
@@ -39,6 +37,7 @@ export interface PermissionFilters {
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
+  query?: string;
 }
 
 export interface ApiResponse<T> {

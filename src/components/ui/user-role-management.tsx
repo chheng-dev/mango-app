@@ -5,16 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/data-table';
-import { RolePermissionModal } from '@/components/ui/role-permission-modal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Shield, 
   ShieldCheck, 
   Users, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye,
   UserCheck,
   UserX,
   Search,
@@ -334,18 +329,6 @@ export function UserRoleManagement({ users, onRefresh, loading = false }: UserRo
         title="User Role & Permission Management"
         description="Manage user roles and permissions from a centralized dashboard"
         searchPlaceholder="Search users..."
-      />
-
-      {/* Role Permission Modal */}
-      <RolePermissionModal
-        user={selectedUser}
-        isOpen={roleModalOpen}
-        onClose={() => {
-          setRoleModalOpen(false);
-          setSelectedUser(null);
-        }}
-        onSave={handleSaveRolesPermissions}
-        loading={saveLoading}
       />
     </div>
   );

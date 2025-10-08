@@ -26,15 +26,7 @@ import { PermissionSection } from './sections/role/permission';
 import { useRoleFormWithQuery } from '@/hooks/useRoleFormWithQuery';
 import { ScrollArea } from '@radix-ui/react-scroll-area';
 import { Card, CardContent } from '../ui/card';
-
-interface Permission {
-  id: number;
-  name: string;
-  slug: string;
-  resource: string;
-  action: string;
-  description?: string;
-}
+import { Permission } from '@/lib/types/permission';
 
 interface RoleFormProps {
   roleId?: string | number;

@@ -8,6 +8,11 @@ export class RoleController extends ModelController<RoleSelect, RoleInsert, Role
     super(new RoleModel());
   }
 
+  async getAll(params?: { page?: number; limit?: number; search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) {
+    const result = await this.model.list( params );
+    return this.convertResponse<RoleSelect[]>(result as any);
+  }
+
   async getRoleBySlug(slug: string): Promise<ApiResponse<RoleSelect>> {
     const result = await this.model.findByField('slug', slug);
     return this.convertResponse<RoleSelect>(result as any);
@@ -31,6 +36,40 @@ export class RoleController extends ModelController<RoleSelect, RoleInsert, Role
   async removePermissionsFromRole(roleId: number, permissionIds: number[]): Promise<ApiResponse<boolean>> {
     const result = await this.model.removePermissions(roleId, permissionIds);
     return this.convertResponse<boolean>(result as any);
+  }
+
+  async countPermissionsForRole(roleId: number): Promise<ApiResponse<number>> {
+    try {
+      const count = await this.model.getPermissionCount(roleId);
+      return {
+        success: true,
+        data: count,
+        message: 'Permission count retrieved successfully'
+      };
+    } catch (error) {
+      console.error('Error counting permissions for role:', error);
+      return {
+        success: false,
+        error: 'Failed to count permissions for role'
+      };
+    }
+  }
+
+  async countUsersForRole(roleId: number): Promise<ApiResponse<number>> {
+    try {
+      const count = await this.model.getUserCount(roleId);
+      return {
+        success: true,
+        data: count,
+        message: 'User count retrieved successfully'
+      };
+    } catch (error) {
+      console.error('Error counting users for role:', error);
+      return {
+        success: false,
+        error: 'Failed to count users for role'
+      };
+    }
   }
 
   protected validateCreateData(data: RoleInsert): ApiResponse<any> | null {

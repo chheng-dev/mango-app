@@ -1,5 +1,4 @@
 import { roleController } from '@/lib/controllers/RoleController';
-import { NextRequest } from 'next/server';
 import { createRoleListHandler } from '@/lib/utils/apiHandlers';
 
 export const GET = createRoleListHandler('LIST', async (request) => {

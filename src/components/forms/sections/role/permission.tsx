@@ -8,16 +8,10 @@ import { cn } from "@/lib/utils";
 import { AlertCircle, ChevronDown, ChevronRight, Key, Lock, Package, Shield, ShoppingCart, Users } from "lucide-react";
 import React, { useMemo } from "react";
 import { type RoleFormData } from "@/lib/validations/role";
+import { Permission } from "@/lib/types/permission";
 
 export interface PermissionSectionProps {
-  permissions: {
-    id: number;
-    name: string;
-    slug: string;
-    action: string;
-    resource: string;
-    description?: string;
-  }[];
+  permissions: Permission[];
   formData: RoleFormData;
   setFormData: React.Dispatch<React.SetStateAction<RoleFormData>>;
   formErrors: Record<string, string>;
@@ -26,15 +20,6 @@ export interface PermissionSectionProps {
   collapseAllSections: () => void;
   toggleSection?: (resource: string) => void;
   onPermissionsChange?: (permissions: number[]) => void;
-}
-
-interface Permission {
-  id: number;
-  name: string;
-  slug: string;
-  resource: string;
-  action: string;
-  description?: string;
 }
 
 export function PermissionSection({ 
