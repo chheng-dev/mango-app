@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoles, useDeleteRole } from '@/hooks/useRoles';
 import { Role } from '@/lib/api/roleApiService';
-import { toast } from '@/lib/utils/toast';
+import { toast } from 'sonner';
 
 export function useRolesPage() {
   const router = useRouter();

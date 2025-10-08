@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { toast } from '@/lib/utils/toast';
 import { useRole } from './useRole';
 import { usePermissionsList } from './usePermissionsList';
 import { useUpdateRole } from './useUpdateRole';

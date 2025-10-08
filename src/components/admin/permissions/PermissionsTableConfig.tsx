@@ -14,21 +14,9 @@ import {
   Lock,
   Plus
 } from 'lucide-react';
-import { Permission } from '@/lib/api/permissionApiService';
+import { Permission } from '@/lib/types/permission';
 
-interface UsePermissionsTableConfigProps {
-  onViewPermission: (permission: Permission) => void;
-  onEditPermission: (permission: Permission) => void;
-  onDeletePermission: (permission: Permission) => void;
-  deleteLoading: number | null;
-}
-
-export function usePermissionsTableConfig({
-  onViewPermission,
-  onEditPermission,
-  onDeletePermission,
-  deleteLoading
-}: UsePermissionsTableConfigProps) {
+export function usePermissionsTableConfig() {
   
   const columns: ColumnDef<Permission>[] = useMemo(() => [
     {
@@ -42,16 +30,6 @@ export function usePermissionsTableConfig({
                 {row.original.name}
               </div>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <code className="text-xs bg-muted px-2 py-1 rounded">
-                {row.original.slug}
-              </code>
-            </div>
-            {row.original.description && (
-              <div className="text-sm text-muted-foreground mt-1 truncate">
-                {row.original.description}
-              </div>
-            )}
           </div>
         </div>
       ),

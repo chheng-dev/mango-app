@@ -36,6 +36,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "./button";
 import { Input } from "./input";
 import { Card, CardContent } from "./card"
@@ -95,6 +103,10 @@ type DataTableProps<TData, TValue> = {
       icon?: React.ComponentType<{ className?: string }>
       onClick: (selectedRows: TData[]) => void | Promise<void>
       variant?: 'default' | 'success' | 'warning' | 'destructive'
+      requiresConfirmation?: boolean
+      confirmTitle?: string
+      confirmMessage?: string
+      confirmButtonText?: string
     }[]
     onSelectionChange?: (selectedRows: TData[]) => void
     getRowId?: (row: TData) => string | number
@@ -129,6 +141,8 @@ export function DataTable<TData, TValue>({
   const [globalFilter, setGlobalFilter] = useState("")
   const [selectedRows, setSelectedRows] = useState<TData[]>([])
   const [bulkActionLoading, setBulkActionLoading] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [pendingAction, setPendingAction] = useState<any>(null)
 
   useEffect(() => {
     if (pagination) {
@@ -175,6 +189,14 @@ export function DataTable<TData, TValue>({
   const handleBulkAction = useCallback(async (action: any) => {
     if (selectedRows.length === 0) return
     
+    // Check if this is a destructive action that needs confirmation
+    if (action.variant === 'destructive' || action.requiresConfirmation) {
+      setPendingAction(action)
+      setShowConfirmModal(true)
+      return
+    }
+    
+    // Execute non-destructive actions immediately
     setBulkActionLoading(true)
     try {
       await action.onClick(selectedRows)
@@ -186,6 +208,29 @@ export function DataTable<TData, TValue>({
       setBulkActionLoading(false)
     }
   }, [selectedRows, bulkActions])
+
+  const handleConfirmAction = useCallback(async () => {
+    if (!pendingAction || selectedRows.length === 0) return
+    
+    setBulkActionLoading(true)
+    setShowConfirmModal(false)
+    
+    try {
+      await pendingAction.onClick(selectedRows)
+      setSelectedRows([])
+      bulkActions?.onSelectionChange?.([])
+    } catch (error) {
+      console.error('Bulk action failed:', error)
+    } finally {
+      setBulkActionLoading(false)
+      setPendingAction(null)
+    }
+  }, [selectedRows, bulkActions, pendingAction])
+
+  const handleCancelAction = useCallback(() => {
+    setShowConfirmModal(false)
+    setPendingAction(null)
+  }, [])
 
   const isRowSelected = useCallback((row: TData) => {
     return selectedRows.some(r => getRowId(r) === getRowId(row))
@@ -235,7 +280,6 @@ export function DataTable<TData, TValue>({
       size: 40,
     }] : []),
     ...columns,
-    // Add actions column if actions are provided
     ...(actions ? [{
       id: 'actions',
       header: () => <div className="text-right">Actions</div>,
@@ -736,6 +780,56 @@ export function DataTable<TData, TValue>({
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="space-y-3">
+            <DialogTitle className="flex items-center gap-3 text-xl font-semibold">
+              {pendingAction?.variant === 'destructive' && (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                  <svg className="h-4 w-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                  </svg>
+                </div>
+              )}
+              {pendingAction?.confirmTitle || 'Confirm Action'}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+              {pendingAction?.confirmMessage || 
+                `Are you sure you want to ${pendingAction?.label?.toLowerCase()} ${selectedRows.length} item${selectedRows.length !== 1 ? 's' : ''}? This action cannot be undone.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelAction}
+              disabled={bulkActionLoading}
+              className="transition-all duration-200 hover:scale-[0.98] active:scale-95"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant={pendingAction?.variant === 'destructive' ? 'destructive' : 'default'}
+              onClick={handleConfirmAction}
+              disabled={bulkActionLoading}
+              className="w-full sm:w-auto transition-all duration-200 hover:scale-[0.98] active:scale-95 shadow-lg"
+            >
+              {bulkActionLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                pendingAction?.confirmButtonText || 'Confirm'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -77,15 +77,13 @@ export default function EditRolePage() {
         onAction={handleOnActionSubmit}
       />
 
-      <div className="container max-w-6xl mx-auto">
-        <RoleForm
-          ref={formRef}
-          roleId={roleId}
-          mode="edit"
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-        />
-      </div>
+      <RoleForm
+        ref={formRef}
+        roleId={roleId}
+        mode="edit"
+        onSuccess={handleSuccess}
+        onCancel={handleCancel}
+      />
     </div>
   );
 }

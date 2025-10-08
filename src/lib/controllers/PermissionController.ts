@@ -1,6 +1,8 @@
 import { ApiResponse } from '@/types/api';
 import { PermissionModel, PermissionSelect, PermissionInsert } from '../models/PermissionModel';
 import { ModelController } from './ModelController';
+import { generatePermissionSlug, isValidSlug, generatePermissionDescription } from '../types/permission';
+import { createPermissionSchema, updatePermissionSchema } from '../validations/permission-schemas';
 
 export class PermissionController extends ModelController<PermissionSelect, PermissionInsert, PermissionModel> {
   
@@ -24,34 +26,32 @@ export class PermissionController extends ModelController<PermissionSelect, Perm
   }
 
   protected validateCreateData(data: PermissionInsert): ApiResponse<any> | null {
-    const errors = this.validateRequiredFields(data, ['name', 'resource', 'action']);
-    if (errors.length) return { success: false, error: errors.map(e => e.message).join(', ') };
-
-    if (data.slug && !this.isValidSlug(data.slug)) {
-      return { success: false, error: 'Slug can only contain lowercase letters, numbers, hyphens, and underscores' };
+    const validation = createPermissionSchema.safeParse(data);
+    if (!validation.success) {
+      return {
+        success: false,
+        error: validation.error.issues.map(issue => issue.message).join(', ')
+      };
     }
-
     return null;
   }
 
   protected validateUpdateData(data: Partial<PermissionInsert>): ApiResponse<any> | null {
-    if (data.name !== undefined) {
-      const errors = this.validateRequiredFields({ name: data.name }, ['name']);
-      if (errors.length) return { success: false, error: errors.map(e => e.message).join(', ') };
+    const validation = updatePermissionSchema.safeParse(data);
+    if (!validation.success) {
+      return {
+        success: false,
+        error: validation.error.issues.map(issue => issue.message).join(', ')
+      };
     }
-
-    if (data.slug && !this.isValidSlug(data.slug)) {
-      return { success: false, error: 'Slug can only contain lowercase letters, numbers, hyphens, and underscores' };
-    }
-
     return null;
   }
 
   protected beforeCreate(data: PermissionInsert): PermissionInsert {
     return {
       ...data,
-      slug: data.slug || this.generateSlug(`${data.resource}_${data.action}`),
-      description: data.description || `${data.action} permissions for ${data.resource}`
+      slug: data.slug || generatePermissionSlug(data.resource, data.action),
+      description: data.description || generatePermissionDescription(data.resource, data.action)
     };
   }
 
@@ -59,7 +59,7 @@ export class PermissionController extends ModelController<PermissionSelect, Perm
     const processedData = { ...data };
     if ((processedData.resource || processedData.action) && !processedData.slug) {
       if (processedData.resource && processedData.action) {
-        processedData.slug = this.generateSlug(`${processedData.resource}_${processedData.action}`);
+        processedData.slug = generatePermissionSlug(processedData.resource, processedData.action);
       }
     }
     return processedData;
@@ -69,14 +69,7 @@ export class PermissionController extends ModelController<PermissionSelect, Perm
     return { allowed: true };
   }
 
-  // Helper methods
-  private generateSlug(value: string): string {
-    return value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  }
-
-  private isValidSlug(slug: string): boolean {
-    return /^[a-z0-9_-]+$/.test(slug);
-  }
+  // Helper methods moved to centralized helpers in types/permission.ts
 
   // Override success messages
   protected getCreateSuccessMessage() { return 'Permission created successfully'; }

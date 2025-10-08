@@ -2,7 +2,40 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { roleApiService, Role, CreateRoleData, UpdateRoleData, ApiResponse } from '@/lib/api/roleApiService';
 
-// Query keys for cache management
+// NOTE: This file could be refactored to use the base entity pattern like this:
+// 
+// import { useBaseEntity } from './useBaseEntity';
+// 
+// const roleApiAdapter = {
+//   getAll: (filters?: any) => roleApiService.getAllRoles(filters),
+//   getById: (id: number) => roleApiService.getRoleById(id),
+//   create: (data: CreateRoleData) => roleApiService.createRole(data),
+//   update: (id: number, data: UpdateRoleData) => roleApiService.updateRole(id, data),
+//   delete: (id: number) => roleApiService.deleteRole(id),
+// };
+// 
+// export function useRoles() {
+//   const baseEntity = useBaseEntity(roleApiAdapter as any, { page: 1, limit: 10 });
+//   
+//   return {
+//     roles: baseEntity.items,
+//     loading: baseEntity.loading,
+//     error: baseEntity.error,
+//     pagination: baseEntity.pagination,
+//     filters: baseEntity.filters,
+//     fetchRoles: baseEntity.fetchItems,
+//     createRole: baseEntity.createItem,
+//     updateRole: baseEntity.updateItem,
+//     deleteRole: baseEntity.deleteItem,
+//     updateRoleStatus: baseEntity.updateItemStatus,
+//     getRoleById: baseEntity.getItemById,
+//     updateFilters: baseEntity.updateFilters,
+//     clearFilters: baseEntity.clearFilters,
+//     clearError: baseEntity.clearError,
+//     handleSubmit: baseEntity.handleSubmit,
+//   };
+// }
+
 export const roleQueryKeys = {
   all: ['roles'] as const,
   lists: () => [...roleQueryKeys.all, 'list'] as const,
@@ -12,11 +45,6 @@ export const roleQueryKeys = {
   withPermissions: (id: number) => [...roleQueryKeys.detail(id), 'permissions'] as const,
 };
 
-// ==================== QUERY HOOKS ====================
-
-/**
- * Get all roles with pagination and search
- */
 export function useRoles(options: {
   page?: number;
   limit?: number;
@@ -33,7 +61,7 @@ export function useRoles(options: {
     sortBy = 'createdAt',
     sortOrder = 'desc',
     enabled = true,
-    includePermissions = true // Default to true to show permission counts
+    includePermissions = true
   } = options;
 
   return useQuery({

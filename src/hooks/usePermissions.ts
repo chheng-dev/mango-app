@@ -1,145 +1,60 @@
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/store/authStore';
-import { queryKeys } from '@/lib/queries/queryKeys';
+import { permissionApiService } from '@/lib/api/permissionApiService';
+import type { Permission, CreatePermissionData, UpdatePermissionData, PermissionFilters, ApiResponse } from '@/lib/types/permission';
+import { useBaseEntity } from './useBaseEntity';
 
-export interface UserPermissionData {
-  permissions: string[];
-  isSuperAdmin: boolean;
-}
+const permissionApiAdapter = {
+  getAll: (filters?: PermissionFilters) => permissionApiService.getAllPermissions(filters),
+  getById: (id: number) => permissionApiService.getPermissionById(id),
+  create: (data: CreatePermissionData) => permissionApiService.createPermission(data),
+  update: (id: number, data: UpdatePermissionData) => permissionApiService.updatePermission(id, data),
+  delete: (id: number) => permissionApiService.deletePermission(id),
+};
 
-export interface UsePermissionsReturn {
-  permissions: string[];
-  isSuperAdmin: boolean;
-  isLoading: boolean;
-  isError: boolean;
-  hasPermission: (requiredPermissions: readonly string[]) => boolean;
-  canPerformAction: (resource: string, action: string) => boolean;
-  hasAnyPermission: (permissionList: readonly string[]) => boolean;
-  refetch: () => void;
-}
-
-const PERMISSIONS_CONFIG = {
-  staleTime: 5 * 60 * 1000, 
-  gcTime: 10 * 60 * 1000,
-  retry: 2,
-  refetchOnWindowFocus: false,
-  refetchOnMount: true,
-} as const;
-class PermissionsAPI {
-  static async fetchUserPermissions(userId: number): Promise<UserPermissionData> {    
-    const response = await fetch(`/api/users/${userId}/permissions`);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch permissions: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to fetch permissions');
-    }
-
-    const transformedData = this.transformPermissionData(result);    
-    return transformedData;
-  }
-
-  private static transformPermissionData(result: any): UserPermissionData {
-    if (result.meta?.isSuperAdmin) {
-      return {
-        permissions: result.data?.permissions || [],
-        isSuperAdmin: true
-      };
-    }
-
-    if (result.data?.permissions && Array.isArray(result.data.permissions)) {
-      return {
-        permissions: result.data.permissions,
-        isSuperAdmin: false
-      };
-    }
-
-    const permissions = result.data?.map((p: any) => 
-      p.permission || `${p.resource}:${p.action}`
-    ) || [];
-    
-    return {
-      permissions,
-      isSuperAdmin: false
-    };
-  }
-}
-class PermissionChecker {
-  constructor(
-    private permissions: string[],
-    private isSuperAdmin: boolean
-  ) {}
-
-  hasPermission(requiredPermissions: readonly string[]): boolean {
-    if (this.isSuperAdmin) return true;    
-    if (requiredPermissions.length === 0) return true;
-    
-    return requiredPermissions.some(permission => 
-      this.permissions.includes(permission)
-    );
-  }
-
-  canPerformAction(resource: string, action: string): boolean {
-    if (this.isSuperAdmin) return true;
-    
-    const requiredPermission = `${resource}:${action}`;
-    return this.permissions.includes(requiredPermission);
-  }
-
-  hasAnyPermission(permissionList: readonly string[]): boolean {
-    if (this.isSuperAdmin) return true;
-    
-    return permissionList.some(permission => 
-      this.permissions.includes(permission)
-    );
-  }
-}
-
-export function usePermissions(): UsePermissionsReturn {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-
-  const query = useQuery({
-    queryKey: queryKeys.auth.permissions(user?.id || 0),
-    queryFn: () => {
-      if (!user?.id) {
-        throw new Error('No user ID available for permissions fetch');
-      }
-      return PermissionsAPI.fetchUserPermissions(user.id);
-    },
-    enabled: !!(isAuthenticated && user?.id && !authLoading),
-    ...PERMISSIONS_CONFIG,
-  });
-
-  const {
-    data: permissionData,
-    isLoading: permissionsLoading,
-    isError,
-    refetch
-  } = query;
-
-  const permissions = permissionData?.permissions || [];
-  const isSuperAdmin = permissionData?.isSuperAdmin || false;
-  const isLoading = authLoading || permissionsLoading;
-
-  const checker = new PermissionChecker(permissions, isSuperAdmin);
+export function usePermissions() {
+  const baseEntity = useBaseEntity(
+    permissionApiAdapter as any,
+    { page: 1, limit: 10 },
+    'permissions'
+  );
 
   return {
-    permissions,
-    isSuperAdmin,
-    isLoading,
-    isError,
-    hasPermission: (requiredPermissions) => {
-      const result = checker.hasPermission(requiredPermissions);
-      return result;
-    },
-    canPerformAction: (resource, action) => checker.canPerformAction(resource, action),
-    hasAnyPermission: (permissionList) => checker.hasAnyPermission(permissionList),
-    refetch: () => refetch(),
+    permissions: baseEntity.items,
+    loading: baseEntity.loading,
+    error: baseEntity.error,
+    pagination: baseEntity.pagination,
+    filters: baseEntity.filters,
+    fetchPermissions: baseEntity.fetchItems,
+    createPermission: baseEntity.createItem,
+    updatePermission: baseEntity.updateItem,
+    deletePermission: baseEntity.deleteItem,
+    updatePermissionStatus: baseEntity.updateItemStatus,
+    getPermissionById: baseEntity.getItemById,
+    updateFilters: baseEntity.updateFilters,
+    clearFilters: baseEntity.clearFilters,
+    clearError: baseEntity.clearError,
+    handleSubmit: baseEntity.handleSubmit,
   };
 }
 
-export { PermissionsAPI, PermissionChecker, PERMISSIONS_CONFIG };
+export function usePermissionsExtended() {
+  const base = usePermissions();
+
+  const getPermissionsByResource = async (resource: string): Promise<ApiResponse<Permission[]>> => {
+    return await permissionApiService.getPermissionsByResource(resource);
+  };
+
+  const getUniqueResources = async (): Promise<ApiResponse<string[]>> => {
+    return await permissionApiService.getUniqueResources();
+  };
+
+  const getPermissionsGroupedByResource = async (): Promise<ApiResponse<Record<string, Permission[]>>> => {
+    return await permissionApiService.getPermissionsGroupedByResource();
+  };
+
+  return {
+    ...base,
+    getPermissionsByResource,
+    getUniqueResources,
+    getPermissionsGroupedByResource,
+  };
+}

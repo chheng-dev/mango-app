@@ -304,7 +304,7 @@ export abstract class BaseModel<TSelect, TInsert> {
       return {
         success,
         data: success,
-        message: success ? 'Record deleted permanently' : 'Record not found'
+        message: success ? 'Record deleted successfully' : 'Record not found'
       };
     } catch (error) {
       console.error(`${this.tableName} delete error:`, error);

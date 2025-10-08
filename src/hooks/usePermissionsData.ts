@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/lib/utils/toast';
-import { permissionApiService, Permission, CreatePermissionData, UpdatePermissionData } from '@/lib/api/permissionApiService';
+import { permissionApiService } from '@/lib/api/permissionApiService';
+import { CreatePermissionData, UpdatePermissionData } from '@/lib/types/permission';
+import { toast } from 'sonner';
 
 export const PERMISSIONS_QUERY_KEYS = {
   all: ['permissions'] as const,

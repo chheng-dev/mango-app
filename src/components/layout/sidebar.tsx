@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Settings, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { usePermissions as useUserPermissions } from '@/hooks/usePermissions';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { 
   mainNavigation, 
   businessNavigation, 
@@ -28,8 +28,7 @@ interface NavigationItem {
 
 // Navigation Item Component
 function NavigationItem({ item, isActive }: { item: NavigationItem; isActive: boolean }) {
-  const { hasPermission, isLoading } = useUserPermissions();
-
+  const { permissions, isSuperAdmin, isLoading, hasPermission } = useUserPermissions();
   // Show loading skeleton while permissions are being fetched
   if (isLoading) {
     return (
