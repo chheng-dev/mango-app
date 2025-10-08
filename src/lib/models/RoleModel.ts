@@ -1,4 +1,3 @@
-import { BaseModel } from "./baseModel";
 import { roles } from '../db/schemas/roles';
 import { permissions } from '../db/schemas/permissions';
 import { rolePermissions } from '../db/schemas/role_permission';
@@ -6,6 +5,8 @@ import { users } from '../db/schemas/users';
 import { userRoles } from '../db/schemas/user_roles';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { db } from '../db';
+import { BaseModel } from "./BaseModel";
+
 
 export type RoleSelect = typeof roles.$inferSelect;
 export type RoleInsert = typeof roles.$inferInsert;

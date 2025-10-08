@@ -1,7 +1,7 @@
 import { permissions } from '../db/schemas/permissions';
 import { eq, and, ilike, ne, or } from 'drizzle-orm';
 import { db } from '../db';
-import { BaseModel } from './baseModel';
+import { BaseModel } from './BaseModel';
 
 export type PermissionSelect = typeof permissions.$inferSelect;
 export type PermissionInsert = typeof permissions.$inferInsert;

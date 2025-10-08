@@ -5,7 +5,7 @@ import { permissions } from '../db/schemas/permissions';
 import { rolePermissions } from '../db/schemas/role_permission';
 import { eq, and, ne } from 'drizzle-orm';
 import { db } from '../db';
-import { BaseModel, ModelResponse } from './baseModel';
+import { BaseModel, ModelResponse } from './BaseModel';
 
 export type UserSelect = typeof users.$inferSelect;
 export type UserInsert = typeof users.$inferInsert;
