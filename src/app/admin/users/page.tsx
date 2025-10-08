@@ -63,9 +63,6 @@ export default function UsersPage() {
         icon: XCircle,
         variant: 'warning' as const,
         onClick: async (selectedUsers: User[]) => {
-          const confirmMessage = `Deactivate ${selectedUsers.length} users?\n\nThis will prevent them from accessing the system.`;
-          if (!window.confirm(confirmMessage)) return;
-          
           await Promise.all(
             selectedUsers.map(user => updateUserStatus(user.id, false))
           );
@@ -77,9 +74,6 @@ export default function UsersPage() {
         icon: Trash2,
         variant: 'destructive' as const,
         onClick: async (selectedUsers: User[]) => {
-          const confirmMessage = `Delete ${selectedUsers.length} users?\n\nThis action cannot be undone.`;
-          if (!window.confirm(confirmMessage)) return;
-          
           await Promise.all(
             selectedUsers.map(user => deleteUser(user.id))
           );

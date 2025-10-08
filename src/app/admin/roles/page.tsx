@@ -17,6 +17,7 @@ export default function RolesManagementPage() {
     roles,
     loading: rolesLoading,
     deleteRole,
+    fetchRoles
   } = useRoles();
 
   const { columns } = useRolesTableConfig();
@@ -29,34 +30,35 @@ export default function RolesManagementPage() {
     router.push(`/admin/roles/edit?id=${role.id}`);
   }
 
-   const handleDeleteRole = useCallback(async (role: Role) => {
-      try {
-        const result = await deleteRole(role.id);
-        if (result.success) {
-          toast.success(`Role "${role.name}" has been deleted successfully`);
-        } else {
-          toast.error(result.error || 'Failed to delete role');
-        }
-      } catch (error) {
-        console.error('Failed to delete role:', error);
-        toast.error('Failed to delete role. Please try again.');
-      }
-    }, [deleteRole]);
-
-      const bulkActions = {
-      actions: [
-        {
-          label: 'Delete',
-          icon: Trash2,
-          variant: 'destructive' as const,
-          requiresConfirmation: true,
-          confirmTitle: 'Delete Roles',
-          confirmMessage: 'Are you sure you want to delete the selected roles? This action cannot be undone.',
-          confirmButtonText: 'Delete',
-          onClick: handleDeleteRole,
-        },
-      ]
+  const handleDeleteRole = async (selectedRoles: typeof roles) => {
+    try {
+      await Promise.all(
+        selectedRoles.map(async (role) => {
+          return deleteRole((role as any).id);
+        })
+      );
+      await fetchRoles();
+      toast.success(`${selectedRoles.length} roles deleted successfully`);
+    } catch (error) {
+      console.error('Failed to delete roles:', error);
+      toast.error('Failed to delete roles');
     }
+  };
+
+  const bulkActions = {
+    actions: [
+      {
+        label: 'Delete',
+        icon: Trash2,
+        variant: 'destructive' as const,
+        requiresConfirmation: true,
+        confirmTitle: 'Delete Roles',
+        confirmMessage: 'Are you sure you want to delete the selected roles? This action cannot be undone.',
+        confirmButtonText: 'Delete',
+        onClick: handleDeleteRole,
+      },
+    ]
+  }
 
 
   return (
