@@ -1,159 +1,214 @@
-/**
- * Client-side API service for permissions
- * This handles HTTP requests to the backend API routes
- */
-
-export interface Permission {
-  id: number;
-  name: string;
-  slug: string;
-  resource: string;
-  action: string;
-  description?: string;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-}
-
-export interface CreatePermissionData {
-  name: string;
-  slug?: string;
-  resource: string;
-  action: string;
-  description?: string;
-}
-
-export interface UpdatePermissionData {
-  name?: string;
-  slug?: string;
-  resource?: string;
-  action?: string;
-  description?: string;
-}
-
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
+import { Permission, CreatePermissionData, UpdatePermissionData, PermissionFilters, ApiResponse } from '../types/permission';
 
 class PermissionApiService {
   private baseUrl = '/api/rbac/permissions';
 
-  async getAllPermissions(options: {
-    page?: number;
-    limit?: number;
-    query?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-    resource?: string;
-  } = {}): Promise<ApiResponse<Permission[]>> {
+  async getAllPermissions(filters: PermissionFilters = {}): Promise<ApiResponse<Permission[]>> {
     const params = new URLSearchParams();
     
-    if (options.page) params.set('page', options.page.toString());
-    if (options.limit) params.set('limit', options.limit.toString());
-    if (options.query) params.set('query', options.query);
-    if (options.sortBy) params.set('sortBy', options.sortBy);
-    if (options.sortOrder) params.set('sortOrder', options.sortOrder);
-    if (options.resource) params.set('resource', options.resource);
+    if (filters.page) params.set('page', filters.page.toString());
+    if (filters.limit) params.set('limit', filters.limit.toString());
+    if (filters.search) params.set('search', filters.search);
+    if (filters.sortBy) params.set('sortBy', filters.sortBy);
+    if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
+    if (filters.resource) params.set('resource', filters.resource);
+    if (filters.action) params.set('action', filters.action);
+    if (filters.isActive !== undefined) params.set('isActive', filters.isActive.toString());
 
-    const response = await fetch(`${this.baseUrl}?${params.toString()}`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(`${this.baseUrl}?${params.toString()}`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Get permissions error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch permissions'
+      };
     }
-    
-    return response.json();
   }
 
   async getPermissionById(id: number): Promise<ApiResponse<Permission>> {
-    const response = await fetch(`${this.baseUrl}/${id}`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(`${this.baseUrl}/${id}`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Permission not found`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Get permission by ID error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch permission'
+      };
     }
-    
-    return response.json();
   }
 
   async createPermission(data: CreatePermissionData): Promise<ApiResponse<Permission>> {
-    const response = await fetch(this.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create permission');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Create permission error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create permission'
+      };
     }
-    
-    return response.json();
   }
 
   async updatePermission(id: number, data: UpdatePermissionData): Promise<ApiResponse<Permission>> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(`${this.baseUrl}/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update permission');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Update permission error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update permission'
+      };
     }
-    
-    return response.json();
   }
 
   async deletePermission(id: number): Promise<ApiResponse<boolean>> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
-      method: 'DELETE',
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(`${this.baseUrl}/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete permission');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Delete permission error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete permission'
+      };
     }
-    
-    return response.json();
   }
 
   async getPermissionsByResource(resource: string): Promise<ApiResponse<Permission[]>> {
-    const response = await fetch(`${this.baseUrl}?resource=${encodeURIComponent(resource)}`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(`${this.baseUrl}?resource=${encodeURIComponent(resource)}`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch permissions by resource');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Get permissions by resource error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch permissions by resource'
+      };
     }
-    
-    return response.json();
   }
 
   async getUniqueResources(): Promise<ApiResponse<string[]>> {
-    const response = await fetch(`${this.baseUrl}/resources`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(`${this.baseUrl}/resources`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch resources');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Get unique resources error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch resources'
+      };
     }
-    
-    return response.json();
   }
 
   async getPermissionsGroupedByResource(): Promise<ApiResponse<Record<string, Permission[]>>> {
-    const response = await fetch(`${this.baseUrl}/grouped`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(`${this.baseUrl}/grouped`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch grouped permissions');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Get permissions grouped by resource error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch grouped permissions'
+      };
     }
-    
-    return response.json();
   }
 }
 

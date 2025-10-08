@@ -40,9 +40,9 @@ export class PasswordService {
       errors.push('Password must contain at least one number');
     }
 
-    if (!/(?=.*[@$!%*?&])/.test(password)) {
-      errors.push('Password must contain at least one special character (@$!%*?&)');
-    }
+    // if (!/(?=.*[@$!%*?&])/.test(password)) {
+    //   errors.push('Password must contain at least one special character (@$!%*?&)');
+    // }
 
     return {
       isValid: errors.length === 0,

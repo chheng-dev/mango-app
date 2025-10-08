@@ -5,9 +5,6 @@ import {
   Settings,
   Shield,
   BarChart3,
-  Bell,
-  FileText,
-  HelpCircle,
   Package,
 } from 'lucide-react';
 import { PERMISSIONS } from '@/lib/constants/permissions';

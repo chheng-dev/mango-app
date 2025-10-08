@@ -32,27 +32,18 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     return BaseRoute.errorResponse('Email already exists', HTTP_STATUS.BAD_REQUEST);
   }
 
-  // Validate password strength
-  const strength = PasswordService.validateStrength(password);
-  if (!strength.isValid) {
-    return BaseRoute.errorResponse(strength.errors.join(', '), HTTP_STATUS.BAD_REQUEST);
-  }
-
-  const passwordHash = await PasswordService.hash(password);
-
   const userData = {
-    email: email.toLowerCase(),
+    email,
     name,
-    code: code || `USER_${Date.now()}`,
-    passwordHash,
-    passwordConfirmation, 
+    code,
+    password, // Pass plain password - UserController will hash it
     dob: dob ? new Date(dob) : null,
     phoneNumber: phoneNumber || null,
     isActive: true,
     isVerified: false
   };
 
-  const result = await userController.create(userData);
+  const result = await userController.createWithPassword(userData);
   
   if (!result.success || !result.data) {
     return BaseRoute.errorResponse(result.error || 'Registration failed', HTTP_STATUS.BAD_REQUEST);

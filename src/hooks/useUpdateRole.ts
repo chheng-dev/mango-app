@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/lib/utils/toast';
+import { toast } from 'sonner';
 
 interface EditRoleData {
   name: string;
@@ -48,7 +48,6 @@ export function useUpdateRole(roleId: string | null) {
       return updateRole(roleId, data);
     },
     onSuccess: () => {
-      // Invalidate and refetch role data
       queryClient.invalidateQueries({ queryKey: ['roles', roleId] });
       queryClient.invalidateQueries({ queryKey: ['roles'] });
       toast.success('Role updated successfully!');

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { UserForm, UserFormRef } from '@/components/forms/UserForm';
 import { useUsers } from '@/hooks/useUsers';
-import { User as UserType } from '@/lib/api/userApiService';
+import { User as UserType } from '@/lib/types/user';
 import { PageHeader } from '@/components/share/page-header';
 import { toast } from 'sonner';
 
@@ -24,7 +24,7 @@ function EditUserContent() {
     if (userId && users.length > 0) {
       const foundUser = users.find(u => u.id === parseInt(userId));
       if (foundUser) {
-        setUser(foundUser);
+        setUser(foundUser as UserType);
       } else {
         toast.error('User not found');
         router.push('/admin/users');
@@ -101,8 +101,7 @@ User Details:
         ref={formRef}
         userId={user.id}
         mode="edit"
-        onSuccess={(updatedUser) => {
-          toast.success(`User "${updatedUser.name}" has been updated successfully`);
+        onSuccess={() => {
           router.push('/admin/users');
         }}
         onCancel={() => router.push('/admin/users')}
@@ -113,17 +112,7 @@ User Details:
   );
 }
 
+
 export default function EditUserPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600 dark:text-gray-400">Loading2...</p>
-        </div>
-      </div>
-    }>
-      <EditUserContent />
-    </Suspense>
-  );
+  return <EditUserContent />;
 }

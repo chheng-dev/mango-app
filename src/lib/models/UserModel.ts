@@ -46,6 +46,88 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
     });
   }
 
+  async updateUserRoles(userId: number, roleIds: number[]): Promise<ModelResponse<boolean>> {
+    try {
+      await db
+        .update(userRoles)
+        .set({ isActive: false })
+        .where(eq(userRoles.userId, userId));
+
+      for (const roleId of roleIds) {
+        const existing = await db
+          .select()
+          .from(userRoles)
+          .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)))
+          .limit(1);
+
+        if (existing.length > 0) {
+          await db
+            .update(userRoles)
+            .set({ isActive: true})
+            .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)));
+        } else {
+          await db
+            .insert(userRoles)
+            .values({
+              userId,
+              roleId,
+              isActive: true,
+            });
+        }
+      }
+
+      return {
+        success: true,
+        data: true,
+        message: 'User roles updated successfully'
+      };
+
+    } catch (error) {
+      console.error('UserModel updateUserRoles error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update user roles'
+      };
+    }
+  }
+
+  async findById(id: number): Promise<ModelResponse<UserSelect>> {
+    return this.findByField('id', id);
+  }
+
+  async findByIdWithRoleId(userId: number): Promise<ModelResponse<{ user: UserSelect; roleId: number | null }>> {
+    const userResult = await this.findById(userId);
+    if (!userResult.success) {
+      return userResult as ModelResponse<UserSelect & { roleId?: number }> as any;
+    }
+
+    const userRoleResult = await db
+      .select({
+        roleId: userRoles.roleId
+      })
+      .from(userRoles)
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(
+        and(
+          eq(userRoles.userId, userId),
+          eq(userRoles.isActive, true),
+          eq(roles.isActive, true)
+        )
+      )
+      .limit(1);
+
+    const result = {
+      ...userResult.data!,
+      roleId: userRoleResult.length ? userRoleResult[0].roleId : null
+    };
+
+    return {
+      success: true,
+      data: result as any,
+      message: 'Fetched user with role ID'
+    };
+  }
+
   async findWithRoles(userId: number): Promise<ModelResponse<UserWithRoles>> {
     try {
       const userResult = await this.findById(userId);

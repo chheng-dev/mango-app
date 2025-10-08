@@ -1,9 +1,8 @@
 import { userController } from '@/lib/controllers/UserController';
-import { NextRequest } from "next/server";
 import { createUserResourceHandler } from '@/lib/utils/apiHandlers';
 
 export const GET = createUserResourceHandler('READ', async (userId) => {
-  return await userController.getById(userId);
+  return await userController.getWithRoles(userId);
 });
 
 export const PUT = createUserResourceHandler('UPDATE', async (userId, request) => {

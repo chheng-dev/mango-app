@@ -1,51 +1,4 @@
-export interface UserFilters {
-  search?: string;
-  status?: 'active' | 'inactive';
-  isVerified?: boolean;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  page?: number;
-  limit?: number;
-}
-
-export interface User {
-  id: number;
-  email: string;
-  name: string;
-  code: string;
-  phoneNumber?: string | null;
-  dob?: Date | null;
-  isActive?: boolean;
-  isVerified?: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-export interface CreateUserData {
-  name: string;
-  email: string;
-  code: string;
-  password: string;
-  passwordConfirmation: string;
-  passwordHash?: string;
-  phoneNumber?: string;
-  dob?: string;
-  isActive?: boolean;
-  isVerified?: boolean;
-}
-
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
+import { User, CreateUserData, UpdateUserData, UserFilters, ApiResponse } from '../types/user';
 
 class UserApiService {
   private baseUrl = '/api/users';
@@ -54,7 +7,6 @@ class UserApiService {
     try {
       const searchParams = new URLSearchParams();
       
-      // Add filters to search params
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           searchParams.append(key, value.toString());
@@ -110,7 +62,7 @@ class UserApiService {
     }
   }
 
-  async updateUser(id: number, updates: Partial<User>): Promise<ApiResponse<User>> {
+  async updateUser(id: number, updates: UpdateUserData): Promise<ApiResponse<User>> {
     try {
       const response = await fetch(`${this.baseUrl}/${id}`, {
         method: 'PUT',

@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { 
@@ -16,19 +15,17 @@ import {
   FormDescription,
 } from '@/components/ui/form';
 import { 
-  Save,
   Loader2,
   Info,
-  CheckCircle2,
-  AlertCircle,
   Eye,
   EyeOff,
-  UserPlus
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { PermissionSection } from './sections/role/permission';
 import { useRoleFormWithQuery } from '@/hooks/useRoleFormWithQuery';
+import { ScrollArea } from '@radix-ui/react-scroll-area';
+import { Card, CardContent } from '../ui/card';
 
 interface Permission {
   id: number;
@@ -145,209 +142,180 @@ export const RoleForm = forwardRef<RoleFormRef, RoleFormProps>(({
   }
 
   return (
-    <div className="w-full mx-auto p-6 space-y-8">
-      <Form {...form}>
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel>Role Name <span className="text-red-500">*</span></FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="e.g., Content Manager"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                  <FormDescription>Choose a clear, descriptive name for this role</FormDescription>
-                </FormItem>
-              )}
-            />
-          
-            <FormField
-              control={form.control}
-              name="slug"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel>URL Slug</FormLabel>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={isSlugManuallyEdited ? disableSlugEditing : enableSlugEditing}
-                      className={cn(
-                        "h-8 px-3 text-xs font-medium transition-all duration-200",
-                        isSlugManuallyEdited ? "bg-primary/10 text-primary" : "hover:bg-muted"
-                      )}
-                    >
-                      {isSlugManuallyEdited ? (
-                        <>
-                          <EyeOff className="h-3 w-3 mr-1" />
-                          Auto-generate
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="h-3 w-3 mr-1" />
-                          Edit manually
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="content-manager"
-                      className="font-mono"
-                      disabled={!isSlugManuallyEdited}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                  <FormDescription>
-                    {!isSlugManuallyEdited ? 'Automatically generated from role name' : 'Used in URLs and API endpoints'}
-                  </FormDescription>
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <Separator className="my-6" />
-
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    placeholder="Describe the role's purpose and responsibilities..."
-                    rows={4}
-                    className="resize-none"
+    <div className="w-full mx-auto space-y-8">
+      <ScrollArea>
+        <Card className='mb-12'>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field, fieldState }) => (
+                      <FormItem>
+                        <FormLabel>Role Name <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="e.g., Content Manager"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <FormDescription>Choose a clear, descriptive name for this role</FormDescription>
+                      </FormItem>
+                    )}
                   />
-                </FormControl>
-                <FormMessage />
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <FormDescription>Help others understand what this role is for</FormDescription>
-                  <span className={cn(
-                    field.value?.length > 450 && "text-orange-500",
-                    field.value?.length > 500 && "text-destructive"
-                  )}>{field.value?.length || 0}/500 characters</span>
+                
+                  <FormField
+                    control={form.control}
+                    name="slug"
+                    render={({ field, fieldState }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between">
+                          <FormLabel>URL Slug</FormLabel>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={isSlugManuallyEdited ? disableSlugEditing : enableSlugEditing}
+                            className={cn(
+                              "h-8 px-3 text-xs font-medium transition-all duration-200",
+                              isSlugManuallyEdited ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                            )}
+                          >
+                            {isSlugManuallyEdited ? (
+                              <>
+                                <EyeOff className="h-3 w-3 mr-1" />
+                                Auto-generate
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="h-3 w-3 mr-1" />
+                                Edit manually
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="content-manager"
+                            className="font-mono"
+                            disabled={!isSlugManuallyEdited}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <FormDescription>
+                          {!isSlugManuallyEdited ? 'Automatically generated from role name' : 'Used in URLs and API endpoints'}
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              </FormItem>
-            )}
-          />
 
-          <Separator className="my-6" />
+                <Separator className="my-6" />
 
-          <FormField
-            control={form.control}
-            name="isActive"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Role Status</FormLabel>
-                <FormControl>
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-3">
-                        <span className="font-medium text-sm">
-                          {field.value ? 'Active' : 'Inactive'}
-                        </span>
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Describe the role's purpose and responsibilities..."
+                          rows={4}
+                          className="resize-none"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <FormDescription>Help others understand what this role is for</FormDescription>
+                        <span className={cn(
+                          field.value?.length > 450 && "text-orange-500",
+                          field.value?.length > 500 && "text-destructive"
+                        )}>{field.value?.length || 0}/500 characters</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {field.value 
-                          ? 'This role can be assigned to users and permissions will be enforced'
-                          : 'This role is disabled and cannot be assigned to new users'
-                        }
-                      </p>
-                    </div>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-        <Separator className="my-6" />
-
-        <PermissionSection
-          permissions={permissions}
-          formData={formData}
-          setFormData={(updater: any) => {
-            if (typeof updater === 'function') {
-              const currentData = formData;
-              const newData = updater(currentData);
-              form.setValue('permissions', newData.permissions, { shouldValidate: true });
-            } else {
-              form.setValue('permissions', updater.permissions, { shouldValidate: true });
-            }
-          }}
-          formErrors={{ permissions: errors.permissions?.message || '' }}
-          setFormErrors={() => {}} 
-          expandAllSections={expandAllSections}
-          collapseAllSections={collapseAllSections}
-          onPermissionsChange={handlePermissionsChange}
-        />
-
-        <Separator className="my-6" />
-
-        {/* Form Actions */}
-        <div className="flex items-center justify-between pt-6">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Info className="h-4 w-4" />
-            <span>
-              {mode === 'edit' 
-                ? 'Changes will be applied immediately after saving'
-                : 'Role will be created with the selected permissions'
-              }
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              className="min-w-[100px]"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || !isValid}
-              className={cn(
-                "min-w-[120px] transition-all duration-200",
-                isSubmitting && "animate-pulse"
-              )}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {mode === 'edit' ? 'Updating...' : 'Creating...'}
-                </>
-              ) : (
-                <>
-                  {mode === 'edit' ? (
-                    <Save className="h-4 w-4 mr-2" />
-                  ) : (
-                    <UserPlus className="h-4 w-4 mr-2" />
+                    </FormItem>
                   )}
-                  {mode === 'edit' ? 'Update Role' : 'Create Role'}
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-        </form>
-      </Form>
+                />
+
+                <Separator className="my-6" />
+
+                <FormField
+                  control={form.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role Status</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-3">
+                              <span className="font-medium text-sm">
+                                {field.value ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {field.value 
+                                ? 'This role can be assigned to users and permissions will be enforced'
+                                : 'This role is disabled and cannot be assigned to new users'
+                              }
+                            </p>
+                          </div>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+              <Separator className="my-6" />
+
+              <PermissionSection
+                permissions={permissions}
+                formData={formData}
+                setFormData={(updater: any) => {
+                  if (typeof updater === 'function') {
+                    const currentData = formData;
+                    const newData = updater(currentData);
+                    form.setValue('permissions', newData.permissions, { shouldValidate: true });
+                  } else {
+                    form.setValue('permissions', updater.permissions, { shouldValidate: true });
+                  }
+                }}
+                formErrors={{ permissions: errors.permissions?.message || '' }}
+                setFormErrors={() => {}} 
+                expandAllSections={expandAllSections}
+                collapseAllSections={collapseAllSections}
+                onPermissionsChange={handlePermissionsChange}
+              />
+
+              <Separator className="my-6" />
+
+              {/* Form Actions */}
+              <div className="flex items-center justify-between pt-6">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Info className="h-4 w-4" />
+                  <span>
+                    {mode === 'edit' 
+                      ? 'Changes will be applied immediately after saving'
+                      : 'Role will be created with the selected permissions'
+                    }
+                  </span>
+                </div>
+              </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </ScrollArea>
     </div>
   );
 });

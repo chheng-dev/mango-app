@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DataTable } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
@@ -10,13 +10,11 @@ import {
   Mail, 
   Shield, 
   AlertTriangle, 
-  Users, 
   CheckCircle,
   XCircle,
-  UserPlus,
 } from 'lucide-react';
 import { useUsers } from '@/hooks/useUsers';
-import { User } from '@/lib/api/userApiService';
+import { User } from '@/lib/types/user';
 import { toast } from "sonner";
 import { ColumnDef } from '@tanstack/react-table';
 import { HeaderComp } from '@/components/share/header-comp';
@@ -27,13 +25,10 @@ export default function UsersPage() {
     users,
     loading,
     error,
-    fetchUsers,
     deleteUser,
     updateUserStatus,
     clearError,
   } = useUsers();
-
-  const [deleteLoading, setDeleteLoading] = useState<number | null>(null);
 
   useEffect(() => {
     if (error) {
@@ -49,52 +44,6 @@ export default function UsersPage() {
   const handleEditUser = useCallback((user: User) => {
     router.push(`/admin/users/edit?id=${user.id}`);
   }, [router]);
-
-  const handleDeleteUser = useCallback(async (user: User) => {
-    const confirmMessage = `Delete User: ${user.name}
-
-This action cannot be undone. Are you sure you want to delete this user?
-
-User Details:
-• Email: ${user.email}
-• Code: ${user.code}
-• Status: ${user.isActive ? 'Active' : 'Inactive'}`;
-    
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    setDeleteLoading(user.id);
-    try {
-      await deleteUser(user.id);
-      toast.success(`User "${user.name}" has been deleted successfully`);
-    } catch (error) {
-      console.error('Failed to delete user:', error);
-      toast.error('Failed to delete user. Please try again.');
-    } finally {
-      setDeleteLoading(null);
-    }
-  }, [deleteUser]);    
-  const handleStatusToggle = useCallback(async (user: User) => {
-    const action = user.isActive ? 'deactivate' : 'activate';
-    const confirmMessage = `${action.charAt(0).toUpperCase() + action.slice(1)} User: ${user.name}
-
-Are you sure you want to ${action} this user?
-
-This will ${user.isActive ? 'prevent them from accessing the system' : 'allow them to access the system again'}.`;
-    
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    try {
-      await updateUserStatus(user.id, !user.isActive);
-      toast.success(`User "${user.name}" has been ${!user.isActive ? 'activated' : 'deactivated'} successfully`);
-    } catch (error) {
-      console.error('Failed to update user status:', error);
-      toast.error('Failed to update user status. Please try again.');
-    }
-  }, [updateUserStatus]);
 
   const bulkActions = {
     actions: [
@@ -255,7 +204,7 @@ This will ${user.isActive ? 'prevent them from accessing the system' : 'allow th
       />
       
       <DataTable
-        data={users}
+        data={users as any[]}
         columns={columns}
         searchPlaceholder="Search users by name, email, or code..."
         bulkActions={bulkActions}
