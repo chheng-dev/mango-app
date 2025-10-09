@@ -6,6 +6,17 @@ import {
   Shield,
   BarChart3,
   Package,
+  Cog,
+  Bell,
+  Palette,
+  Database,
+  Globe,
+  ShoppingBag,
+  RotateCcw,
+  Store,
+  Tag,
+  UserCheck,
+  TrendingUp,
 } from 'lucide-react';
 import { PERMISSIONS } from '@/lib/constants/permissions';
 
@@ -21,49 +32,197 @@ export interface NavigationItem {
 // Main navigation items
 export const mainNavigation: NavigationItem[] = [
   { 
-    name: 'Dashboard', 
+    name: 'Home', 
     href: '/admin', 
     icon: Home,
     permissions: [], 
     category: 'overview'
   },
   { 
-    name: "User Management", 
+    name: 'Orders', 
+    href: '/admin/orders', 
+    icon: ShoppingBag,
+    permissions: [PERMISSIONS.USER_READ],
+    category: 'orders',
+    badge: '2'
+  },
+  { 
+    name: 'Returns', 
+    href: '/admin/returns', 
+    icon: RotateCcw,
+    permissions: [PERMISSIONS.USER_READ],
+    category: 'returns'
+  },
+];
+
+// User & Role Management Section
+// export const userManagementNavigation: NavigationItem[] = [
+//   { 
+//     name: "Users", 
+//     href: '/admin/users', 
+//     icon: Users,
+//     permissions: [PERMISSIONS.USER_READ],
+//     category: 'users'
+//   },
+//   { 
+//     name: 'Roles', 
+//     href: '/admin/roles', 
+//     icon: Shield,
+//     permissions: [PERMISSIONS.ROLE_READ],
+//     category: 'rbac'
+//   },
+//   { 
+//     name: 'Permissions', 
+//     href: '/admin/permissions', 
+//     icon: Shield,
+//     permissions: [PERMISSIONS.PERMISSION_READ],
+//     category: 'rbac'
+//   },
+// ];
+
+// User Section
+export const userManagementNavigation: NavigationItem[] = [
+  { 
+    name: 'Users', 
     href: '/admin/users', 
-    icon: Users,
+    icon: Package,
     permissions: [PERMISSIONS.USER_READ],
     category: 'users'
   },
   { 
-    name: 'Roles Management', 
+    name: 'Roles', 
     href: '/admin/roles', 
-    icon: Shield,
+    icon: Tag,
     permissions: [PERMISSIONS.ROLE_READ],
-    category: 'rbac'
+    category: 'users'
   },
   { 
     name: 'Permissions', 
     href: '/admin/permissions', 
-    icon: Shield,
+    icon: Cog,
     permissions: [PERMISSIONS.PERMISSION_READ],
-    category: 'rbac'
+    category: 'users'
+  },
+];
+
+// Products Section
+export const productsNavigation: NavigationItem[] = [
+  { 
+    name: 'Stock', 
+    href: '/admin/products/stock', 
+    icon: Package,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'products'
+  },
+  { 
+    name: 'Taxonomies', 
+    href: '/admin/products/taxonomies', 
+    icon: Tag,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'products'
+  },
+  { 
+    name: 'Options', 
+    href: '/admin/products/options', 
+    icon: Cog,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'products'
+  },
+  { 
+    name: 'Properties', 
+    href: '/admin/products/properties', 
+    icon: Settings,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'products'
   },
 ];
 
 export const businessNavigation: NavigationItem[] = [
   { 
-    name: 'Products', 
-    href: '/admin/products', 
-    icon: Package,
-    permissions: [PERMISSIONS.SYSTEM_ADMIN], // Using system admin for business features
+    name: 'Vendors', 
+    href: '/admin/vendors', 
+    icon: UserCheck,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'business',
+    badge: 'Enterprise'
+  },
+  { 
+    name: 'Customers', 
+    href: '/admin/customers', 
+    icon: Users,
+    permissions: [PERMISSIONS.USER_READ],
+    category: 'business'
+  },
+  { 
+    name: 'Promotions', 
+    href: '/admin/promotions', 
+    icon: Tag,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
     category: 'business'
   },
   { 
     name: 'Reports', 
     href: '/admin/reports', 
-    icon: BarChart3,
-    permissions: [PERMISSIONS.SYSTEM_ADMIN], // Using system admin for reports
+    icon: TrendingUp,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
     category: 'business'
+  },
+];
+
+// Storefront Section
+export const storefrontNavigation: NavigationItem[] = [
+  { 
+    name: 'Users', 
+    href: '/admin/users',
+    icon: Palette,
+    permissions: [PERMISSIONS.USER_READ],
+    category: 'storefront'
+  },
+  { 
+    name: 'Pages', 
+    href: '/admin/storefront/pages', 
+    icon: Globe,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'storefront'
+  },
+  { 
+    name: 'Posts', 
+    href: '/admin/storefront/posts', 
+    icon: Settings,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'storefront'
+  },
+  { 
+    name: 'Settings', 
+    href: '/admin/storefront/settings', 
+    icon: Cog,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'storefront'
+  },
+];
+
+// Integrations Section
+export const integrationsNavigation: NavigationItem[] = [
+  { 
+    name: 'API Settings', 
+    href: '/admin/integrations/api', 
+    icon: Database,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'integrations'
+  },
+  { 
+    name: 'Webhooks', 
+    href: '/admin/integrations/webhooks', 
+    icon: Globe,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'integrations'
+  },
+  { 
+    name: 'Third Party', 
+    href: '/admin/integrations/third-party', 
+    icon: Cog,
+    permissions: [PERMISSIONS.SYSTEM_ADMIN],
+    category: 'integrations'
   },
 ];
 
@@ -102,15 +261,22 @@ export const eventNavigation: NavigationItem[] = [
 // All navigation items combined
 export const allNavigation = [
   ...mainNavigation,
+  ...productsNavigation,
+  ...userManagementNavigation,
   ...businessNavigation,
+  ...storefrontNavigation,
+  ...integrationsNavigation,
   ...eventNavigation,
 ];
 
 // Navigation organized by categories
 export const navigationByCategory = {
   overview: mainNavigation.filter(item => item.category === 'overview'),
-  users: mainNavigation.filter(item => item.category === 'users'),
+  products: productsNavigation,
+  userManagement: userManagementNavigation,
   business: businessNavigation,
+  storefront: storefrontNavigation,
+  integrations: integrationsNavigation,
   events: eventNavigation,
 };
 

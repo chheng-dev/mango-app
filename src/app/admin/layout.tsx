@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import { AdminHeader } from '@/components/layout/admin-header';
 import { AdminMain } from '@/components/layout/admin-main';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -16,16 +17,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     <ThemeProvider>
       <ProtectedRoute>
         <Toaster position="top-right" richColors />
-        <div className="flex h-screen bg-background text-primary">
-          <AdminSidebar />
-          
-          <div className="flex-1 flex flex-col min-w-0">
-            <AdminHeader />
-            <AdminMain>
-              {children}
-            </AdminMain>
+        <SidebarProvider>
+          <div className="flex w-full h-screen">
+            <AdminSidebar />
+            
+            <SidebarInset>
+              <AdminHeader />
+              <AdminMain>
+                {children}
+              </AdminMain>
+            </SidebarInset>
           </div>
-        </div>
+        </SidebarProvider>
       </ProtectedRoute>
     </ThemeProvider>
   );

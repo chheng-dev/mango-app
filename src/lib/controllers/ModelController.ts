@@ -1,5 +1,5 @@
 import { ApiResponse } from '@/types/api';
-import { BaseModel, ModelResponse } from '../models/baseModel';
+import { BaseModel, ModelResponse } from '../models/BaseModel';
 
 export abstract class ModelController<TSelect, TInsert, TModel extends BaseModel<TSelect, TInsert>> {
   protected model: TModel;
