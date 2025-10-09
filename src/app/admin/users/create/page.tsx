@@ -28,7 +28,7 @@ export default function CreateUserPage() {
   }
 
   return (
-    <div className='min-h-screen bg-background'>
+    <div className='h-screen bg-background'>
       <PageHeader 
         title="Create New User"
         onBack={() => router.push('/admin/users')} 

@@ -108,8 +108,8 @@ export const userFormSchema = baseUserSchema.extend({
   }
   return true;
 }, {
-  message: "Password must be at least 8 characters with uppercase, lowercase, number, special character, and passwords must match",
-  path: ["passwordConfirmation"],
+  // message: "Password must be at least 8 characters with uppercase, lowercase, number, special character, and passwords must match",
+  // path: ["passwordConfirmation"],
 });
 
 // Type exports
