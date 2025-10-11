@@ -1,3 +1,5 @@
+import { NewProduct, Product } from './schemas/products';
+
 // Central schema exports - Import all schemas from individual files
 export * from './schemas/users';
 export * from './schemas/permissions';
@@ -11,6 +13,10 @@ export { permissions } from './schemas/permissions';
 export { roles } from './schemas/roles';
 export { rolePermissions } from './schemas/role_permission';
 export { userRoles } from './schemas/user_roles';
+export { products } from './schemas/products';
+export { stock } from './schemas/stock';
+export { warehouse } from './schemas/warehose';
+
 
 // Export all types in one place
 export type {
@@ -37,4 +43,19 @@ export type {
   UserRole,
   NewUserRole
 } from './schemas/user_roles';
+
+export type {
+  Product,
+  NewProduct  
+} from './schemas/products';
+
+export type {
+  Stock,
+  NewStock
+} from './schemas/stock';
+
+export type {
+  Warehouse,
+  NewWarehouse
+} from './schemas/warehose';
 
