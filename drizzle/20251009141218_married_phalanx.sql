@@ -1,0 +1,1 @@
+ALTER TABLE "tbl_stock" RENAME TO "stock";
