@@ -1,24 +1,20 @@
+import { PERMISSIONS } from '@/lib/constants/permissions';
 import {
-  Home,
   Calendar,
-  Users,
-  Settings,
-  Shield,
-  BarChart3,
-  Package,
   Cog,
-  Bell,
-  Palette,
   Database,
   Globe,
-  ShoppingBag,
+  Home,
+  Package,
+  Palette,
   RotateCcw,
-  Store,
+  Settings,
+  ShoppingBag,
   Tag,
-  UserCheck,
   TrendingUp,
+  UserCheck,
+  Users
 } from 'lucide-react';
-import { PERMISSIONS } from '@/lib/constants/permissions';
 
 export interface NavigationItem {
   name: string;
@@ -55,31 +51,6 @@ export const mainNavigation: NavigationItem[] = [
   },
 ];
 
-// User & Role Management Section
-// export const userManagementNavigation: NavigationItem[] = [
-//   { 
-//     name: "Users", 
-//     href: '/admin/users', 
-//     icon: Users,
-//     permissions: [PERMISSIONS.USER_READ],
-//     category: 'users'
-//   },
-//   { 
-//     name: 'Roles', 
-//     href: '/admin/roles', 
-//     icon: Shield,
-//     permissions: [PERMISSIONS.ROLE_READ],
-//     category: 'rbac'
-//   },
-//   { 
-//     name: 'Permissions', 
-//     href: '/admin/permissions', 
-//     icon: Shield,
-//     permissions: [PERMISSIONS.PERMISSION_READ],
-//     category: 'rbac'
-//   },
-// ];
-
 // User Section
 export const userManagementNavigation: NavigationItem[] = [
   { 
@@ -88,6 +59,20 @@ export const userManagementNavigation: NavigationItem[] = [
     icon: Package,
     permissions: [PERMISSIONS.USER_READ],
     category: 'users'
+  },
+  {
+    name: 'Customers',
+    href: '/admin/customers',
+    icon: Users,
+    permissions: [PERMISSIONS.USER_READ],
+    category: 'setup'
+  },
+  {
+    name: 'Employees',
+    href: '/admin/user-management/employees',
+    icon: Users,
+    permissions: [PERMISSIONS.USER_READ],
+    category: 'setup'
   },
   { 
     name: 'Roles', 
@@ -201,7 +186,6 @@ export const storefrontNavigation: NavigationItem[] = [
   },
 ];
 
-// Integrations Section
 export const integrationsNavigation: NavigationItem[] = [
   { 
     name: 'API Settings', 
@@ -231,28 +215,28 @@ export const eventNavigation: NavigationItem[] = [
     name: 'My Schedule', 
     href: '/admin/schedule', 
     icon: Calendar,
-    permissions: [PERMISSIONS.PROFILE_READ], // Users can view their own schedule
+    permissions: [PERMISSIONS.PROFILE_READ],
     category: 'events'
   },
   { 
     name: 'Manage Events', 
     href: '/admin/events', 
     icon: Settings,
-    permissions: [PERMISSIONS.SYSTEM_ADMIN], // Admin feature for managing events
+    permissions: [PERMISSIONS.SYSTEM_ADMIN], 
     category: 'events'
   },
   { 
     name: 'Calendar', 
     href: '/admin/calendar', 
     icon: Calendar,
-    permissions: [PERMISSIONS.PROFILE_READ], // Users can view calendar
+    permissions: [PERMISSIONS.PROFILE_READ],
     category: 'events'
   },
   { 
     name: 'People', 
     href: '/admin/people', 
     icon: Users,
-    permissions: [PERMISSIONS.USER_READ], // Need user read permission to view people
+    permissions: [PERMISSIONS.USER_READ], 
     category: 'events'
   },
 ];
@@ -281,10 +265,10 @@ export const navigationByCategory = {
 };
 
 // Permission groups for easier management
-export const permissionGroups = {
-  users: [PERMISSIONS.USER_READ, PERMISSIONS.USER_CREATE, PERMISSIONS.USER_UPDATE, PERMISSIONS.USER_DELETE],
-  roles: [PERMISSIONS.ROLE_READ, PERMISSIONS.ROLE_CREATE, PERMISSIONS.ROLE_UPDATE, PERMISSIONS.ROLE_DELETE],
-  permissions: [PERMISSIONS.PERMISSION_READ, PERMISSIONS.PERMISSION_CREATE, PERMISSIONS.PERMISSION_UPDATE, PERMISSIONS.PERMISSION_DELETE],
-  system: [PERMISSIONS.SYSTEM_ADMIN, PERMISSIONS.SYSTEM_SETTINGS],
-  profile: [PERMISSIONS.PROFILE_READ, PERMISSIONS.PROFILE_UPDATE],
-};
+// export const permissionGroups = {
+//   users: [PERMISSIONS.USER_READ, PERMISSIONS.USER_CREATE, PERMISSIONS.USER_UPDATE, PERMISSIONS.USER_DELETE],
+//   roles: [PERMISSIONS.ROLE_READ, PERMISSIONS.ROLE_CREATE, PERMISSIONS.ROLE_UPDATE, PERMISSIONS.ROLE_DELETE],
+//   permissions: [PERMISSIONS.PERMISSION_READ, PERMISSIONS.PERMISSION_CREATE, PERMISSIONS.PERMISSION_UPDATE, PERMISSIONS.PERMISSION_DELETE],
+//   system: [PERMISSIONS.SYSTEM_ADMIN, PERMISSIONS.SYSTEM_SETTINGS],
+//   profile: [PERMISSIONS.PROFILE_READ, PERMISSIONS.PROFILE_UPDATE],
+// };

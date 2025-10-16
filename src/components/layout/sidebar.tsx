@@ -9,7 +9,7 @@ import {
   businessNavigation,
   storefrontNavigation,
   integrationsNavigation,
-  userManagementNavigation
+  userManagementNavigation,
 } from '@/lib/navigation';
 import { Users, Package, Store, Globe, Settings } from 'lucide-react';
 import {
@@ -44,7 +44,6 @@ export function Sidebar({ className }: SidebarProps) {
 
   return (
     <SidebarPrimitive side="left" variant="inset" className={className}>
-      {/* Header */}
       <SidebarHeader>
         <CustomSidebarHeader />
       </SidebarHeader>

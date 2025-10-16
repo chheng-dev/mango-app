@@ -16,6 +16,11 @@ export { userRoles } from './schemas/user_roles';
 export { products } from './schemas/products';
 export { stock } from './schemas/stock';
 export { warehouse } from './schemas/warehose';
+export { employees } from './schemas/employees';
+export { customers } from './schemas/customers';
+export { quotationHeader } from './schemas/quotations';
+export { quotationLine } from './schemas/quotation_line';
+export { contactPersons } from './schemas/contact_persons';
 
 
 // Export all types in one place
@@ -58,4 +63,3 @@ export type {
   Warehouse,
   NewWarehouse
 } from './schemas/warehose';
-
