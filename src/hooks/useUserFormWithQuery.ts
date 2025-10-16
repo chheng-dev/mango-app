@@ -60,7 +60,7 @@ export function useUserFormWithQuery({
       isVerified: false,
       roles: [],
     },
-    mode: 'all', // Validate on change, blur, and submit
+    mode: 'all',
   });
 
   const {
@@ -156,8 +156,7 @@ export function useUserFormWithQuery({
     },
   });
 
-  const onFormSubmit = handleSubmit(async (data: UserFormData) => {
-    console.log('Form submitted with data:', data);
+  const onFormSubmit = handleSubmit(async (data) => {
     try {
       if (mode === 'create') {
         await createUserMutation.mutateAsync(data);

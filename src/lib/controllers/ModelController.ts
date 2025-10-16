@@ -107,12 +107,12 @@ export abstract class ModelController<TSelect, TInsert, TModel extends BaseModel
   protected beforeCreate?(data: TInsert): Promise<TInsert> | TInsert;
   protected afterCreate?(created: TSelect): Promise<void> | void;
 
-  protected beforeUpdate?(id: number, data: Partial<TInsert>): Promise<Partial<TInsert>> | Partial<TInsert>;
+  protected beforeUpdate?(id: number | string, data: Partial<TInsert>): Promise<Partial<TInsert>> | Partial<TInsert>;
   protected afterUpdate?(updated: TSelect): Promise<void> | void;
 
-  protected canDelete?(id: number): Promise<{ allowed: boolean; reason?: string }> | { allowed: boolean; reason?: string };
-  protected beforeDelete?(id: number): Promise<void> | void;
-  protected afterDelete?(id: number): Promise<void> | void;
+  protected canDelete?(id: number | string): Promise<{ allowed: boolean; reason?: string }> | { allowed: boolean; reason?: string };
+  protected beforeDelete?(id: number | string): Promise<void> | void;
+  protected afterDelete?(id: number | string): Promise<void> | void;
 
   // Helper for validation
   protected validateRequiredFields(data: Record<string, any>, fields: string[]): Array<{ field: string; message: string }> {

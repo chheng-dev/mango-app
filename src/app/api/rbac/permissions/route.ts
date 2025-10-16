@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
 import { permissionController } from '@/lib/controllers/PermissionController';
-import { handleApiResponse, handleProtectedRoute } from '@/lib/utils/BaseRoute';
+import { handleApiResponse } from '@/lib/utils/BaseRoute';
 import { PERMISSIONS } from '@/lib/constants/permissions';
+import { protectRoute } from '@/lib/auth/unified';
 
-
-export const GET = handleProtectedRoute(async (request: NextRequest, { auth }) => {
+export const GET = protectRoute(async (request: NextRequest, { user  }) => {
   const url = new URL(request.url);
   const resource = url.searchParams.get('resource') || undefined;
 
@@ -15,11 +15,11 @@ export const GET = handleProtectedRoute(async (request: NextRequest, { auth }) =
     result = await permissionController.getAll();
   }
 
-  return handleApiResponse(result, auth.user?.email);
-}, { requiredPermissions: [PERMISSIONS.PERMISSION_READ] });
+  return handleApiResponse(result, user?.email);
+});
 
-export const POST = handleProtectedRoute(async (request: NextRequest, { auth }) => {
+export const POST = protectRoute(async (request: NextRequest, { user }) => {
   const data = await request.json();
   const result = await permissionController.create(data);
-  return handleApiResponse(result, auth.user?.email);
-}, { requiredPermissions: [PERMISSIONS.PERMISSION_CREATE] });
+  return handleApiResponse(result, user?.email);
+});

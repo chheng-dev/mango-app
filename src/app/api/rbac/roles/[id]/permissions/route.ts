@@ -1,19 +1,24 @@
 import { roleController } from '@/lib/controllers/RoleController';
-import { BaseRoute, handleApiResponse, createProtectedRoute } from '@/lib/utils/BaseRoute';
+import { BaseRoute, handleApiResponse } from '@/lib/utils/BaseRoute';
 import { PERMISSIONS } from '@/lib/constants/permissions';
+import { protectRoute } from '@/lib/auth/unified';
+import { userController } from '@/lib/controllers/UserController';
 
-export const GET = createProtectedRoute(async (request, { user, params }) => {
+export const GET = protectRoute(async (request, { user, params }) => {
   const roleId = Number(params.id);
   
   if (isNaN(roleId) || roleId <= 0) {
     return BaseRoute.errorResponse('Invalid role ID', 400);
   }
   
-  const result = await roleController.getRoleWithPermissions(roleId);
+  // Check if the requester is a super-admin
+  const isSuperAdmin = await userController.isSuperAdmin(user!.id);
+  
+  const result = await roleController.getRoleWithPermissions(roleId, { isSuperAdmin });
   return handleApiResponse(result, user?.email);
-}, { requiredPermissions: [PERMISSIONS.ROLE_READ] });
+});
 
-export const POST = createProtectedRoute(async (request, { user, params }) => {
+export const POST = protectRoute(async (request, { user, params }) => {
   const roleId = Number(params.id);
   
   if (isNaN(roleId) || roleId <= 0) {
@@ -27,9 +32,9 @@ export const POST = createProtectedRoute(async (request, { user, params }) => {
 
   const result = await roleController.assignPermissionsToRole(roleId, permissionIds);
   return handleApiResponse(result, user?.email);
-}, { requiredPermissions: [PERMISSIONS.ROLE_CREATE] });
+});
 
-export const PUT = createProtectedRoute(async (request, { user, params }) => {
+export const PUT = protectRoute(async (request, { user, params }) => {
   const roleId = Number(params.id);
   
   if (isNaN(roleId) || roleId <= 0) {
@@ -43,9 +48,9 @@ export const PUT = createProtectedRoute(async (request, { user, params }) => {
 
   const result = await roleController.updatePermissionsForRole(roleId, permissionIds);
   return handleApiResponse(result, user?.email);
-}, { requiredPermissions: [PERMISSIONS.ROLE_UPDATE] });
+});
 
-export const DELETE = createProtectedRoute(async (request, { user, params }) => {
+export const DELETE = protectRoute(async (request, { user, params }) => {
   const roleId = Number(params.id);
   
   if (isNaN(roleId) || roleId <= 0) {
@@ -59,4 +64,4 @@ export const DELETE = createProtectedRoute(async (request, { user, params }) => 
 
   const result = await roleController.removePermissionsFromRole(roleId, permissionIds);
   return handleApiResponse(result, user?.email);
-}, { requiredPermissions: [PERMISSIONS.ROLE_DELETE] });
+});

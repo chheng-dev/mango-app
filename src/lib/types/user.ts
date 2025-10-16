@@ -7,6 +7,7 @@ export interface User {
   code: string;
   phoneNumber?: string | null;
   dob?: Date | null;
+  role: string;
   isActive?: boolean;
   isVerified?: boolean;
   createdAt?: Date;

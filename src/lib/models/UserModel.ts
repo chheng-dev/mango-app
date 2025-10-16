@@ -3,7 +3,7 @@ import { userRoles } from '../db/schemas/user_roles';
 import { roles } from '../db/schemas/roles';
 import { permissions } from '../db/schemas/permissions';
 import { rolePermissions } from '../db/schemas/role_permission';
-import { eq, and, ne } from 'drizzle-orm';
+import { eq, and, ne, or, isNull, gt } from 'drizzle-orm';
 import { db } from '../db';
 import { BaseModel, ModelResponse } from './BaseModel';
 
@@ -34,6 +34,155 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
       [users.name, users.email, users.code],
       ['name', 'email', 'code'] 
     );
+  }
+
+  async list(options?: { isSuperAdmin?: boolean }): Promise<ModelResponse<UserSelect[]>> {
+    try {
+      if (options?.isSuperAdmin) {
+        const result = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            code: users.code,
+            phoneNumber: users.phoneNumber,
+            dob: users.dob,
+            isActive: users.isActive,
+            role: roles.name,
+            isVerified: users.isVerified,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+          })
+          .from(users)
+          .where(eq(users.isActive, true))
+          .leftJoin(userRoles, eq(userRoles.userId, users.id))
+          .leftJoin(roles, and(eq(userRoles.roleId, roles.id), eq(userRoles.isActive, true)))
+          .groupBy(users.id, roles.name);
+
+        return {
+          success: true,
+          data: result as any,
+          message: 'Fetched user list successfully'
+        };
+      }
+
+      // If requester is NOT super-admin, hide users with super-admin role
+      const superAdminRoleResult = await db
+        .select({ id: roles.id })
+        .from(roles)
+        .where(eq(roles.slug, 'super-admin'))
+        .limit(1);
+      
+      if (superAdminRoleResult.length === 0) {
+        // No super-admin role exists, return all users
+        const result = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            code: users.code,
+            phoneNumber: users.phoneNumber,
+            dob: users.dob,
+            isActive: users.isActive,
+            role: roles.name,
+            isVerified: users.isVerified,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+          })
+          .from(users)
+          .where(eq(users.isActive, true))
+          .leftJoin(userRoles, eq(userRoles.userId, users.id))
+          .leftJoin(roles, and(eq(userRoles.roleId, roles.id), eq(userRoles.isActive, true)))
+          .groupBy(users.id, roles.name);
+
+        return {
+          success: true,
+          data: result as any,
+          message: 'Fetched user list successfully'
+        };
+      }
+
+      // Get users who have super-admin role
+      const superAdminRoleId = superAdminRoleResult[0].id;
+      const superAdminUsers = await db
+        .select({ userId: userRoles.userId })
+        .from(userRoles)
+        .where(
+          and(
+            eq(userRoles.roleId, superAdminRoleId),
+            eq(userRoles.isActive, true)
+          )
+        );
+      
+      const superAdminUserIds = superAdminUsers.map((u) => u.userId);
+
+      if (superAdminUserIds.length === 0) {
+        // No super-admin users exist, return all users
+        const result = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            code: users.code,
+            phoneNumber: users.phoneNumber,
+            dob: users.dob,
+            isActive: users.isActive,
+            role: roles.name,
+            isVerified: users.isVerified,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+          })
+          .from(users)
+          .where(eq(users.isActive, true))
+          .leftJoin(userRoles, eq(userRoles.userId, users.id))
+          .leftJoin(roles, and(eq(userRoles.roleId, roles.id), eq(userRoles.isActive, true)))
+          .groupBy(users.id, roles.name);
+
+        return {
+          success: true,
+          data: result as any,
+          message: 'Fetched user list successfully'
+        };
+      }
+
+      // Exclude super-admin users from results
+      const conditions = [
+        eq(users.isActive, true),
+        ...superAdminUserIds.map((id) => ne(users.id, id))
+      ];
+
+      const result = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          code: users.code,
+          phoneNumber: users.phoneNumber,
+          dob: users.dob,
+          isActive: users.isActive,
+          role: roles.name,
+          isVerified: users.isVerified,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        })
+        .from(users)
+        .where(and(...conditions))
+        .leftJoin(userRoles, eq(userRoles.userId, users.id))
+        .leftJoin(roles, and(eq(userRoles.roleId, roles.id), eq(userRoles.isActive, true)))
+        .groupBy(users.id, roles.name);
+
+      return {
+        success: true,
+        data: result as any,
+        message: 'Fetched user list successfully'
+      };
+    } catch (error) { 
+      console.error('UserModel list error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch users'
+      };
+    }
   }
   
   async findByEmail(email: string): Promise<ModelResponse<UserSelect>> {
@@ -155,6 +304,7 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
             eq(userRoles.userId, userId),
             eq(userRoles.isActive, true),
             eq(roles.isActive, true)
+            // Don't filter super-admin here - user should see their own roles
           )
         );
 
@@ -198,6 +348,31 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
         error: error instanceof Error ? error.message : 'Failed to fetch user with roles'
       };
     }
+  }
+
+  async getUserRoles(userId: number): Promise<string[]> {
+    const now = new Date();
+
+    const rows = await db
+      .select({
+        slug: roles.slug,
+        roleName: roles.name,
+        roleId: roles.id,
+        isActive: userRoles.isActive,
+      })
+      .from(roles)
+      .innerJoin(userRoles, eq(userRoles.roleId, roles.id))
+      .where(
+        and(
+          eq(userRoles.userId, userId),
+          eq(userRoles.isActive, true),
+          eq(roles.isActive, true),
+          // Don't filter super-admin here - user should see their own role
+          or(isNull(userRoles.expiresAt), gt(userRoles.expiresAt, now))
+        )
+      );
+
+    return rows.map((row) => row.slug);
   }
 
   async emailExists(email: string, excludeId?: number): Promise<boolean> {
@@ -315,4 +490,71 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
   async getUserWithRoles(userId: number): Promise<ModelResponse<UserWithRoles>> {
     return this.findWithRoles(userId);
   }
+
+  async isSuperAdmin(userId: number): Promise<boolean> {
+    try {
+      const superAdminRole = await db
+        .select({ id: roles.id })
+        .from(roles)
+        .where(eq(roles.slug, 'super-admin'))
+        .limit(1);
+
+      if (superAdminRole.length === 0) {
+        return false;
+      }
+
+      const userRole = await db
+        .select({ id: userRoles.id })
+        .from(userRoles)
+        .where(
+          and(
+            eq(userRoles.userId, userId),
+            eq(userRoles.roleId, superAdminRole[0].id),
+            eq(userRoles.isActive, true)
+          )
+        )
+        .limit(1);
+
+      return userRole.length > 0;
+
+    } catch (error) {
+      console.error('UserModel isSuperAdmin error:', error);
+      return false;
+    }
+  }
+
+  async getUserPermissions(userId: number): Promise<string[]> {
+  const now = new Date();
+
+  const rows = await db
+    .select({
+      slug: permissions.slug,
+    })
+    .from(permissions)
+    .innerJoin(rolePermissions, eq(rolePermissions.permissionId, permissions.id))
+    .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
+    .innerJoin(userRoles, eq(userRoles.roleId, roles.id))
+    .where(
+      and(
+        eq(userRoles.userId, userId),
+        eq(userRoles.isActive, true),
+        eq(roles.isActive, true),
+        or(isNull(userRoles.expiresAt), gt(userRoles.expiresAt, now))
+      )
+    );
+
+  const uniq = Array.from(new Set(rows.map((row) => row.slug)));
+  return uniq;
+  }
+
+  async hasPermission(userId: number, permissionSlug: string): Promise<boolean> {
+    const permissions = await this.getUserPermissions(userId);
+    return permissions.includes(permissionSlug);
+  }
+
+  async hasRole(userId: number, roleSlug: string): Promise<boolean> {
+    const roles = await this.getUserRoles(userId);
+    return roles.includes(roleSlug);
+  }
 }
+

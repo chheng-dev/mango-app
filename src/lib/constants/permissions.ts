@@ -1,83 +1,36 @@
-/**
- * Application Permissions
- */
+
 export const PERMISSIONS = {
-  // User permissions
-  USER_READ: 'user:read',
-  USER_CREATE: 'user:create',
-  USER_UPDATE: 'user:update',
-  USER_DELETE: 'user:delete',
+  // User permissions - using underscore format to match database
+  USERS_READ: 'user_read',
+  USERS_CREATE: 'user_create',
+  USERS_UPDATE: 'user_update',
+  USERS_DELETE: 'user_delete',
+  USERS_EXPORT: 'user_export',
+
+  // Role permissions - using underscore format to match database
+  ROLES_READ: 'roles_read',
+  ROLES_CREATE: 'roles_create',
+  ROLES_UPDATE: 'roles_update',
+  ROLES_DELETE: 'roles_delete',
+  ROLES_EXPORT: 'roles_export',
+
+  // Permission permissions - using underscore format to match database
+  PERMISSIONS_READ: 'permissions_read',
+  PERMISSIONS_CREATE: 'permissions_create',
+  PERMISSIONS_UPDATE: 'permissions_update',
+  PERMISSIONS_EXPORT: 'permissions_export',
+  PERMISSIONS_DELETE: 'permissions_delete',
   
-  // Role permissions
-  ROLE_READ: 'role:read',
-  ROLE_CREATE: 'role:create',
-  ROLE_UPDATE: 'role:update',
-  ROLE_DELETE: 'role:delete',
-  
-  // Permission permissions
-  PERMISSION_READ: 'permission:read',
-  PERMISSION_CREATE: 'permission:create',
-  PERMISSION_UPDATE: 'permission:update',
-  PERMISSION_DELETE: 'permission:delete',
-  
-  // System permissions
-  SYSTEM_ADMIN: 'system:admin',
-  SYSTEM_SETTINGS: 'system:settings',
-  
-  // Profile permissions
-  PROFILE_READ: 'profile:read',
-  PROFILE_UPDATE: 'profile:update',
+  // Profile permissions - using underscore format to match database
+  PROFILES_READ: 'profiles_read',
+  PROFILES_UPDATE: 'profiles_update',
+
+  // Contact person permissions - using underscore format to match database
+  CONTACT_PERSON_READ: 'contact_person_read',
+  CONTACT_PERSON_CREATE: 'contact_person_create',
+  CONTACT_PERSON_UPDATE: 'contact_person_update',
+  CONTACT_PERSON_DELETE: 'contact_person_delete',
 } as const;
 
-/**
- * Application Roles
- */
-export const ROLES = {
-  SUPER_ADMIN: 'super-admin',
-  ADMIN: 'admin',
-  MANAGER: 'manager',
-  USER: 'user',
-} as const;
-
-/**
- * Default role permissions mapping
- */
-export const DEFAULT_ROLE_PERMISSIONS = {
-  [ROLES.SUPER_ADMIN]: [
-    PERMISSIONS.USER_READ,
-    PERMISSIONS.USER_CREATE,
-    PERMISSIONS.USER_UPDATE,
-    PERMISSIONS.USER_DELETE,
-    PERMISSIONS.ROLE_READ,
-    PERMISSIONS.ROLE_CREATE,
-    PERMISSIONS.ROLE_UPDATE,
-    PERMISSIONS.ROLE_DELETE,
-    PERMISSIONS.PERMISSION_READ,
-    PERMISSIONS.PERMISSION_CREATE,
-    PERMISSIONS.PERMISSION_UPDATE,
-    PERMISSIONS.PERMISSION_DELETE,
-    PERMISSIONS.SYSTEM_ADMIN,
-    PERMISSIONS.SYSTEM_SETTINGS,
-    PERMISSIONS.PROFILE_READ,
-    PERMISSIONS.PROFILE_UPDATE,
-  ],
-  [ROLES.ADMIN]: [
-    PERMISSIONS.USER_READ,
-    PERMISSIONS.USER_CREATE,
-    PERMISSIONS.USER_UPDATE,
-    PERMISSIONS.ROLE_READ,
-    PERMISSIONS.PERMISSION_READ,
-    PERMISSIONS.SYSTEM_SETTINGS,
-    PERMISSIONS.PROFILE_READ,
-    PERMISSIONS.PROFILE_UPDATE,
-  ],
-  [ROLES.MANAGER]: [
-    PERMISSIONS.USER_READ,
-    PERMISSIONS.PROFILE_READ,
-    PERMISSIONS.PROFILE_UPDATE,
-  ],
-  [ROLES.USER]: [
-    PERMISSIONS.PROFILE_READ,
-    PERMISSIONS.PROFILE_UPDATE,
-  ],
-} as const;
+// Type exports
+export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];

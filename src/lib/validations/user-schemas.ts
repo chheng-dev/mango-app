@@ -120,16 +120,21 @@ export type UserFormData = z.infer<typeof userFormSchema>;
 
 // Helper function to create create schema with required password
 export const createRequiredPasswordSchema = () => {
-  return userFormSchema.refine((data) => {
-    if (!data.password || data.password.length < 8) {
-      return false;
-    }
-    if (data.password !== data.passwordConfirmation) {
-      return false;
-    }
-    return true;
-  }, {
-    message: "Password is required and must meet all requirements",
-    path: ["password"],
+  return baseUserSchema.extend({
+    password: z
+      .string()
+      .min(1, "Password is required")
+      .min(8, "Password must be at least 8 characters")
+      .regex(/(?=.*[a-z])/, "Password must contain at least one lowercase letter")
+      .regex(/(?=.*[A-Z])/, "Password must contain at least one uppercase letter")
+      .regex(/(?=.*\d)/, "Password must contain at least one number")
+      .regex(/(?=.*[@$!%*?&])/, "Password must contain at least one special character"),
+    
+    passwordConfirmation: z.string().min(1, "Please confirm your password"),
+    
+    roles: z.array(z.number().positive()).default([]),
+  }).refine((data) => data.password === data.passwordConfirmation, {
+    message: "Passwords don't match",
+    path: ["passwordConfirmation"],
   });
 };

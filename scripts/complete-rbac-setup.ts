@@ -12,6 +12,7 @@ import { rolePermissions } from '../src/lib/db/schemas/role_permission';
 import { userRoles } from '../src/lib/db/schemas/user_roles';
 import { users } from '../src/lib/db/schemas/users';
 import { eq, and } from 'drizzle-orm';
+import { userController } from '@/lib/controllers/UserController';
 
 // Complete permissions list matching the application needs
 const allPermissions = [
@@ -300,8 +301,7 @@ async function testUserPermissions() {
     const allUsers = await db.select().from(users).limit(3);
     
     for (const user of allUsers) {
-      const { getUserPermissions } = await import('../src/lib/services/rbac-service');
-      const permissions = await getUserPermissions(user.id);
+      const permissions = await userController.getUserPermissions(user.id);
       console.log(`  👤 ${user.email}: ${permissions.length} permissions`);
       if (permissions.length > 0) {
         console.log(`    First 5: ${permissions.slice(0, 5).join(', ')}`);

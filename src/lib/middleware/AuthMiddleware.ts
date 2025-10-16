@@ -1,9 +1,19 @@
+/**
+ * @deprecated This file is deprecated. Use src/lib/auth/unified.ts instead.
+ * 
+ * This complex authentication system has been replaced with a simpler,
+ * more maintainable unified system.
+ * 
+ * Migration guide: docs/AUTH_CLEANUP_GUIDE.md
+ */
+
 import { NextRequest } from 'next/server';
 import { jwtService } from '../auth/jwt';
 import { AuthContext } from '../types/auth';
-import { getUserPermissions, getUserRoles } from '../services/rbac-service';
+import { userController } from '../controllers/UserController';
 
 /**
+ * @deprecated Use protectRoute from src/lib/auth/unified.ts instead
  * Authentication and authorization middleware
  */
 export class AuthMiddleware {
@@ -50,8 +60,8 @@ export class AuthMiddleware {
       
       // Fetch user roles and permissions from database
       const [userRoles, userPermissions] = await Promise.all([
-        getUserRoles(payload.userId),
-        getUserPermissions(payload.userId)
+        userController.getUserRoles(payload.userId),
+        userController.getUserPermissions(payload.userId)
       ]);
       
       // Create auth context with dynamic permissions and roles
@@ -93,32 +103,44 @@ export class AuthMiddleware {
   }
 
   /**
-   * Check if user has required permissions
+   * Check if user has required permissions (fetches fresh from database)
    */
-  static checkPermissions(
+  static async checkPermissions(
     context: AuthContext,
     requiredPermissions: string[],
     requireAll = false
-  ): {
+  ): Promise<{
     authorized: boolean;
     error?: { success: boolean; error: string };
-  } {
+  }> {
     if (!requiredPermissions || requiredPermissions.length === 0) {
       return { authorized: true };
     }
 
-    const userPermissions = context.user.permissions || [];
-    
-    const hasPermissions = requireAll
-      ? requiredPermissions.every(permission => userPermissions.includes(permission))
-      : requiredPermissions.some(permission => userPermissions.includes(permission));
+    try {
+      // Fetch fresh permissions from database
+      const userPermissions = await userController.getUserPermissions(context.user.id);
+      
+      const hasPermissions = requireAll
+        ? requiredPermissions.every(permission => userPermissions.includes(permission))
+        : requiredPermissions.some(permission => userPermissions.includes(permission));
 
-    if (!hasPermissions) {
+      if (!hasPermissions) {
+        return {
+          authorized: false,
+          error: {
+            success: false,
+            error: `Missing required permissions: ${requiredPermissions.join(', ')}`
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Error checking permissions:', error);
       return {
         authorized: false,
         error: {
           success: false,
-          error: `Missing required permissions: ${requiredPermissions.join(', ')}`
+          error: 'Failed to verify permissions'
         }
       };
     }
@@ -129,30 +151,42 @@ export class AuthMiddleware {
   /**
    * Check if user has required roles
    */
-  static checkRoles(
+  static async checkRoles(
     context: AuthContext,
     requiredRoles: string[],
     requireAll = false
-  ): {
+  ): Promise<{
     authorized: boolean;
     error?: { success: boolean; error: string };
-  } {
+  }> {
     if (!requiredRoles || requiredRoles.length === 0) {
       return { authorized: true };
     }
 
-    const userRoles = context.user.roles || [];
-    
-    const hasRoles = requireAll
-      ? requiredRoles.every(role => userRoles.includes(role))
-      : requiredRoles.some(role => userRoles.includes(role));
+    try {
+      // Fetch fresh roles from database
+      const userRoles = await userController.getUserRoles(context.user.id);
+      
+      const hasRoles = requireAll
+        ? requiredRoles.every(role => userRoles.includes(role))
+        : requiredRoles.some(role => userRoles.includes(role));
 
-    if (!hasRoles) {
+      if (!hasRoles) {
+        return {
+          authorized: false,
+          error: {
+            success: false,
+            error: `Missing required roles: ${requiredRoles.join(', ')}`
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Error checking roles:', error);
       return {
         authorized: false,
         error: {
           success: false,
-          error: `Missing required roles: ${requiredRoles.join(', ')}`
+          error: 'Failed to verify roles'
         }
       };
     }
@@ -181,8 +215,8 @@ export class AuthMiddleware {
   static async refreshUserContext(context: AuthContext): Promise<AuthContext> {
     try {
       const [userRoles, userPermissions] = await Promise.all([
-        getUserRoles(context.user.id),
-        getUserPermissions(context.user.id)
+        userController.getUserRoles(context.user.id),
+        userController.getUserPermissions(context.user.id)
       ]);
 
       return {
@@ -205,8 +239,8 @@ export class AuthMiddleware {
   static async getUserContextById(userId: number, token?: string): Promise<AuthContext | null> {
     try {
       const [userRoles, userPermissions] = await Promise.all([
-        getUserRoles(userId),
-        getUserPermissions(userId)
+        userController.getUserRoles(userId),
+        userController.getUserPermissions(userId)
       ]);
 
       // Note: You might want to fetch user details from the database here
@@ -234,7 +268,7 @@ export class AuthMiddleware {
    */
   static async hasUserPermission(userId: number, permission: string): Promise<boolean> {
     try {
-      const userPermissions = await getUserPermissions(userId);
+      const userPermissions = await userController.getUserPermissions(userId);
       return userPermissions.includes(permission);
     } catch (error) {
       console.error('Error checking user permission:', error);
@@ -247,7 +281,7 @@ export class AuthMiddleware {
    */
   static async hasUserRole(userId: number, role: string): Promise<boolean> {
     try {
-      const userRoles = await getUserRoles(userId);
+      const userRoles = await userController.getUserRoles(userId);
       return userRoles.includes(role);
     } catch (error) {
       console.error('Error checking user role:', error);

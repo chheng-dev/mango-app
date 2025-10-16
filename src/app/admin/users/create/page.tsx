@@ -12,17 +12,16 @@ export default function CreateUserPage() {
 
   const handleOnActionSubmit = async () => {
     if (formRef.current) {
+      
+      // Trigger validation
       const isFormValid = await formRef.current.triggerValidation();
       
       if (!isFormValid) {
+        toast.error('Please fix the validation errors before submitting.');
         return;
       }
       
-      if (!formRef.current.isDirty) {
-        toast.info('No changes to save.');
-        return;
-      }
-
+      // Submit the form
       formRef.current.submit();
     }
   }

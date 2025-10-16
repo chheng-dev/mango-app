@@ -1,8 +1,8 @@
+import { protectRoute } from "@/lib/auth/unified";
 import { roleController } from "@/lib/controllers/RoleController";
-import { BaseRoute, createProtectedRoute, handleApiResponse } from "@/lib/utils/BaseRoute";
-import { PERMISSIONS } from '@/lib/constants/permissions';
+import { BaseRoute, handleApiResponse } from "@/lib/utils/BaseRoute";
 
-export const GET  = createProtectedRoute(async (request, { user, params }) => {
+export const GET  = protectRoute(async (request, { user, params }) => {
   const roleId = Number(params?.id);
 
   if (isNaN(roleId) || roleId <= 0) {
@@ -11,4 +11,4 @@ export const GET  = createProtectedRoute(async (request, { user, params }) => {
 
   const result = await roleController.getById(roleId);
   return handleApiResponse(result, user?.email);
-}, { requiredPermissions: [PERMISSIONS.ROLE_READ] });
+});

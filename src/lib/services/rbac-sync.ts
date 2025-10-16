@@ -2,17 +2,74 @@ import { db } from '../db';
 import { permissions } from '../db/schemas/permissions';
 import { roles } from '../db/schemas/roles';
 import { rolePermissions } from '../db/schemas/role_permission';
-import { PERMISSIONS, ROLES, DEFAULT_ROLE_PERMISSIONS } from '../constants/permissions';
+import { PERMISSIONS } from '../constants/permissions';
 import { eq, and } from 'drizzle-orm';
 
 /**
+ * Default roles configuration
+ * These will be created if they don't exist
+ */
+const DEFAULT_ROLES = [
+  {
+    slug: 'super-admin',
+    name: 'Super Admin',
+    description: 'Full system access with all permissions',
+    isActive: true,
+  },
+  {
+    slug: 'admin',
+    name: 'Admin',
+    description: 'Administrative access to most features',
+    isActive: true,
+  },
+  {
+    slug: 'user',
+    name: 'User',
+    description: 'Standard user with basic permissions',
+    isActive: true,
+  },
+];
+
+/**
+ * Default role-permission mappings
+ * Note: super-admin automatically gets all permissions
+ */
+const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
+  'admin': [
+    'user_read',
+    'user_create',
+    'user_update',
+    'user_export',
+    'roles_read',
+    'roles_create',
+    'roles_update',
+    'roles_export',
+    'permissions_read',
+    'permissions_export',
+    'profiles_read',
+    'profiles_update',
+    'contact_person_read',
+    'contact_person_create',
+    'contact_person_update',
+    'contact_person_export',
+  ],
+  'user': [
+    'profiles_read',
+    'profiles_update',
+    'contact_person_read',
+  ],
+};
+
+/**
  * Sync permissions and roles from constants to database
+ * For a fully dynamic system, this only syncs base permissions from constants
+ * Roles and their permissions can be managed through the UI
  */
 export async function syncPermissionsAndRolesToDB() {
   try {
     console.log('🔄 Starting permissions and roles sync...');
 
-    // 1. Sync Permissions
+    // 1. Sync Permissions from constants
     console.log('📋 Syncing permissions...');
     const permissionEntries = Object.entries(PERMISSIONS);
     const createdPermissions = [];
@@ -26,15 +83,20 @@ export async function syncPermissionsAndRolesToDB() {
         .limit(1);
 
       if (!existingPermission) {
+        // Parse resource and action from slug (e.g., 'user_read' -> resource: 'user', action: 'read')
+        const parts = slug.split('_');
+        const action = parts.pop() || 'access'; // Last part is action
+        const resource = parts.join('_'); // Rest is resource
+
         // Create new permission
         const [newPermission] = await db
           .insert(permissions)
           .values({
             name: key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
             slug: slug,
-            resource: slug.split(':')[0],
-            action: slug.split(':')[1] || 'access',
-            description: `Permission to ${slug.replace(':', ' ')}`,
+            resource: resource,
+            action: action,
+            description: `Permission to ${action} ${resource}`,
           })
           .returning();
         
@@ -45,40 +107,34 @@ export async function syncPermissionsAndRolesToDB() {
       }
     }
 
-    // 2. Sync Roles
-    console.log('👥 Syncing roles...');
-    const roleEntries = Object.entries(ROLES);
+    // 2. Sync Default Roles (if they don't exist)
+    console.log('👥 Syncing default roles...');
     const createdRoles = [];
 
-    for (const [key, slug] of roleEntries) {
+    for (const roleConfig of DEFAULT_ROLES) {
       // Check if role already exists
       const [existingRole] = await db
         .select()
         .from(roles)
-        .where(eq(roles.slug, slug))
+        .where(eq(roles.slug, roleConfig.slug))
         .limit(1);
 
       if (!existingRole) {
         // Create new role
         const [newRole] = await db
           .insert(roles)
-          .values({
-            name: key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
-            slug: slug,
-            description: `${key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())} role`,
-            isActive: true,
-          })
+          .values(roleConfig)
           .returning();
         
         createdRoles.push(newRole);
-        console.log(`  ✅ Created role: ${slug}`);
+        console.log(`  ✅ Created role: ${roleConfig.slug}`);
       } else {
-        console.log(`  ℹ️  Role already exists: ${slug}`);
+        console.log(`  ℹ️  Role already exists: ${roleConfig.slug}`);
       }
     }
 
-    // 3. Sync Role Permissions
-    console.log('🔗 Syncing role permissions...');
+    // 3. Sync Default Role Permissions (only for newly created roles or if explicitly requested)
+    console.log('🔗 Syncing default role permissions...');
     
     for (const [roleSlug, permissionSlugs] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
       // Get the role
@@ -113,8 +169,10 @@ export async function syncPermissionsAndRolesToDB() {
           .select()
           .from(rolePermissions)
           .where(
-            eq(rolePermissions.roleId, role.id) && 
-            eq(rolePermissions.permissionId, permission.id)
+            and(
+              eq(rolePermissions.roleId, role.id),
+              eq(rolePermissions.permissionId, permission.id)
+            )
           )
           .limit(1);
 
@@ -157,15 +215,16 @@ export async function syncPermissionsAndRolesToDB() {
 }
 
 /**
- * Remove permissions and roles that are no longer defined in constants
+ * Remove permissions that are no longer defined in constants
+ * Note: In a dynamic system, roles are managed through the UI and should NOT be cleaned up automatically
  */
 export async function cleanupOrphanedPermissionsAndRoles() {
   try {
-    console.log('🧹 Cleaning up orphaned permissions and roles...');
+    console.log('🧹 Cleaning up orphaned permissions...');
 
     // Get all permission slugs from constants
     const definedPermissions = Object.values(PERMISSIONS);
-    const definedRoles = Object.values(ROLES);
+    const definedRoleSlugs = DEFAULT_ROLES.map(r => r.slug);
 
     // Find permissions in DB that are not in constants
     const allDbPermissions = await db.select().from(permissions);
@@ -173,38 +232,38 @@ export async function cleanupOrphanedPermissionsAndRoles() {
       p => !definedPermissions.includes(p.slug as any)
     );
 
-    // Find roles in DB that are not in constants
-    const allDbRoles = await db.select().from(roles);
-    const orphanedRoles = allDbRoles.filter(
-      r => !definedRoles.includes(r.slug as any)
-    );
-
-    // Delete orphaned permissions (permissions don't have isActive field)
+    // Delete orphaned permissions
+    let deletedCount = 0;
     for (const permission of orphanedPermissions) {
       await db
         .delete(permissions)
         .where(eq(permissions.id, permission.id));
       
-      console.log(`  �️  Deleted orphaned permission: ${permission.slug}`);
+      console.log(`  🗑️  Deleted orphaned permission: ${permission.slug}`);
+      deletedCount++;
     }
 
-    // Deactivate orphaned roles
-    for (const role of orphanedRoles) {
-      await db
-        .update(roles)
-        .set({ isActive: false })
-        .where(eq(roles.id, role.id));
-      
-      console.log(`  🚫 Deactivated orphaned role: ${role.slug}`);
+    // Optional: Warn about roles that are not in default list
+    // (but don't delete them as they may be custom roles created through UI)
+    const allDbRoles = await db.select().from(roles);
+    const customRoles = allDbRoles.filter(
+      r => !definedRoleSlugs.includes(r.slug)
+    );
+
+    if (customRoles.length > 0) {
+      console.log(`  ℹ️  Found ${customRoles.length} custom roles (not cleaning up):`);
+      customRoles.forEach(role => {
+        console.log(`     - ${role.slug}: ${role.name}`);
+      });
     }
 
     console.log('✨ Cleanup completed successfully!');
     
     return {
       success: true,
-      deactivated: {
-        permissions: orphanedPermissions.length,
-        roles: orphanedRoles.length,
+      cleaned: {
+        permissions: deletedCount,
+        customRolesFound: customRoles.length,
       }
     };
 

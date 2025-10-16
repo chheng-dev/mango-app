@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { users, roles, userRoles } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { userController } from '@/lib/controllers/UserController';
 
 /**
  * Assign Super Admin Role API Endpoint
@@ -76,8 +77,7 @@ export async function POST(request: NextRequest) {
     console.log('📋 Current roles:', assignedRoles);
 
     // 6. Get permissions count for verification
-    const { getUserPermissions } = await import('@/lib/services/rbac-service');
-    const permissions = await getUserPermissions(userId);
+    const permissions = await userController.getUserPermissions(userId);
 
     return NextResponse.json({
       success: true,

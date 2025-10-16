@@ -1,7 +1,14 @@
+/**
+ * @deprecated This file is deprecated. Use src/lib/auth/unified.ts instead.
+ * 
+ * Migration guide: docs/AUTH_CLEANUP_GUIDE.md
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtService } from '../auth/jwt';
 
 /**
+ * @deprecated Use protectRoute from src/lib/auth/unified.ts instead
  * Authentication middleware utility
  */
 

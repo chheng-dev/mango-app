@@ -10,6 +10,7 @@ import {
   storefrontNavigation,
   integrationsNavigation,
   userManagementNavigation,
+  // setUpNavigation,
 } from '@/lib/navigation';
 import { Users, Package, Store, Globe, Settings } from 'lucide-react';
 import {
@@ -65,7 +66,7 @@ export function Sidebar({ className }: SidebarProps) {
         </SidebarGroup>
 
         {/* Products Section */}
-        <SidebarGroup>
+        {/* <SidebarGroup>
           <SidebarGroupLabel>
             <Package className="h-4 w-4 mr-2" />
             Products
@@ -77,19 +78,19 @@ export function Sidebar({ className }: SidebarProps) {
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
+        </SidebarGroup> */}
 
         {/* Business Navigation */}
-        <SidebarGroup>
+        {/* <SidebarGroup>
           <SidebarMenu>
             {businessNavigation.map((item) => (
               <NavigationMenuItem key={item.name} item={item} pathname={pathname} />
             ))}
           </SidebarMenu>
-        </SidebarGroup>
+        </SidebarGroup> */}
 
         {/* Storefront Section */}
-        <SidebarGroup>
+        {/* <SidebarGroup>
           <SidebarGroupLabel>
             <Store className="h-4 w-4 mr-2" />
             Storefront
@@ -101,7 +102,7 @@ export function Sidebar({ className }: SidebarProps) {
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
+        </SidebarGroup> */}
 
         {/* Integrations Section */}
         <SidebarGroup>
@@ -117,6 +118,22 @@ export function Sidebar({ className }: SidebarProps) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* <SidebarGroup>
+          <SidebarGroupLabel>
+            <Settings className="h-4 w-4 mr-2" />
+            Set Up
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {
+                setUpNavigation.map((item: any) => (
+                  <NavigationMenuItem key={item.name} item={item} pathname={pathname} />
+                ))
+              }
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup> */}
 
         {/* Settings Section */}
         <SidebarGroup>

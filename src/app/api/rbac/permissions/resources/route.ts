@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server';
 import { permissionController } from '@/lib/controllers/PermissionController';
-import { BaseRoute, handleApiResponse, handleProtectedRoute } from '@/lib/utils/BaseRoute';
+import { BaseRoute, handleApiResponse } from '@/lib/utils/BaseRoute';
 import { PERMISSIONS } from '@/lib/constants/permissions';
+import { protectRoute } from '@/lib/auth/unified';
 
-export const GET = handleProtectedRoute(async (request: NextRequest, { auth }) => {
+export const GET = protectRoute(async (request: NextRequest, { user }) => {
   const url = new URL(request.url);
   const resource = url.searchParams.get('resource');
   if (!resource) {
@@ -11,5 +12,5 @@ export const GET = handleProtectedRoute(async (request: NextRequest, { auth }) =
   }
 
   const result = await permissionController.getPermissionsByResource(resource);
-  return handleApiResponse(result, auth.user?.email);
-}, { requiredPermissions: [PERMISSIONS.PERMISSION_READ] });
+  return handleApiResponse(result, user?.email);
+});

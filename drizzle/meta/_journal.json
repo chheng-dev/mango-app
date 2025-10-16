@@ -50,6 +50,13 @@
       "when": 1760366912059,
       "tag": "20251013144832_fearless_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1760964368964,
+      "tag": "20251020124608_new_serpent_society",
+      "breakpoints": true
     }
   ]
 }
