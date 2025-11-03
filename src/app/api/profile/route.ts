@@ -1,20 +1,40 @@
-import { NextRequest } from 'next/server';
-import { handleProtectedRoute, handleApiResponse } from '@/lib/utils/BaseRoute';
+import { protectRoute } from '@/lib/auth/unified';
 import { userController } from '@/lib/controllers/UserController';
-import { PERMISSIONS } from '@/lib/constants/permissions';
+import { handleApiResponse } from '@/lib/utils/BaseRoute';
+import { NextRequest } from 'next/server';
 
-export const GET = handleProtectedRoute(async (request: NextRequest, { user }) => {
+export const GET = protectRoute(async (request: NextRequest, { user }) => {
   if (!user?.id) {
     throw new Error('Invalid user session');
   }
   
-  const result = await userController.getCurrentUser(user.id);
+  // Fetch complete user data including roles and permissions
+  const [userRoles, userPermissions, isSuperAdmin, currentUser] = await Promise.all([
+    userController.getUserRoles(user.id),
+    userController.getUserPermissions(user.id),
+    userController.isSuperAdmin(user.id),
+    userController.getCurrentUser(user.id)
+  ]);
+
+  if (!currentUser.success) {
+    return handleApiResponse(currentUser, user.email);
+  }
+
+  const result = {
+    success: true,
+    data: {
+      ...currentUser.data,
+      roles: userRoles,
+      permissions: userPermissions,
+      isSuperAdmin
+    },
+    message: 'User profile retrieved successfully'
+  };
+
   return handleApiResponse(result, user.email);
-}, {
-  requiredPermissions: [PERMISSIONS.PROFILE_READ]
 });
 
-export const PUT = handleProtectedRoute(async (request: NextRequest, { user }) => {
+export const PUT = protectRoute(async (request: NextRequest, { user }) => {
   if (!user?.id) {
     throw new Error('Invalid user session');
   }
@@ -45,11 +65,9 @@ export const PUT = handleProtectedRoute(async (request: NextRequest, { user }) =
 
   const result = await userController.update(user.id, cleanedData);
   return handleApiResponse(result, user.email);
-}, {
-  requiredPermissions: [PERMISSIONS.PROFILE_UPDATE]
 });
 
-export const DELETE = handleProtectedRoute(async (request: NextRequest, { user }) => {
+export const DELETE = protectRoute(async (request: NextRequest, { user }) => {
   if (!user?.id) {
     throw new Error('Invalid user session');
   }
@@ -75,6 +93,4 @@ export const DELETE = handleProtectedRoute(async (request: NextRequest, { user }
   }
 
   return handleApiResponse(result, user.email);
-}, {
-  requiredPermissions: [PERMISSIONS.PROFILE_UPDATE]
 });

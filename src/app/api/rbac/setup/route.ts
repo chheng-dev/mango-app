@@ -6,6 +6,7 @@ import { rolePermissions } from '@/lib/db/schemas/role_permission';
 import { userRoles } from '@/lib/db/schemas/user_roles';
 import { users } from '@/lib/db/schemas/users';
 import { eq, and } from 'drizzle-orm';
+import { userController } from '@/lib/controllers/UserController';
 
 /**
  * RBAC Setup API Endpoint
@@ -198,9 +199,8 @@ async function assignAdminRoleToUser(userEmail: string) {
   }
   
   // Test permissions
-  const { getUserPermissions } = await import('@/lib/services/rbac-service');
-  const permissions = await getUserPermissions(user[0].id);
-  
+  const permissions = await userController.getUserPermissions(user[0].id);
+
   return {
     userId: user[0].id,
     userEmail: user[0].email,

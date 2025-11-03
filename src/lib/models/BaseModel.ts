@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { eq, desc, asc, and, or, like, count, SQL, inArray } from 'drizzle-orm';
+import { eq, desc, asc, and, or, like, count, SQL, inArray, ne } from 'drizzle-orm';
 
 export interface PaginationOptions {
   page?: number;
@@ -36,21 +36,93 @@ export abstract class BaseModel<TSelect, TInsert> {
   protected abstract table: any;
   protected searchableFields: any[] = [];
   protected requiredFields: string[] = [];
+  
+  // Allow customization of primary key and timestamp fields
+  protected primaryKey: string = 'id';
+  protected createdAtField: string = 'createdAt';
+  protected updatedAtField: string = 'updatedAt';
 
-  constructor(searchableFields: any[] = [], requiredFields: string[] = []) {
+  constructor(
+    searchableFields: any[] = [], 
+    requiredFields: string[] = [],
+    options?: {
+      primaryKey?: string;
+      createdAtField?: string;
+      updatedAtField?: string;
+    }
+  ) {
     this.searchableFields = searchableFields;
     this.requiredFields = requiredFields;
+    if (options?.primaryKey) this.primaryKey = options.primaryKey;
+    if (options?.createdAtField) this.createdAtField = options.createdAtField;
+    if (options?.updatedAtField) this.updatedAtField = options.updatedAtField;
   }
+
+  // ==================== LIFECYCLE HOOKS ====================
+  /**
+   * Hook called before creating a record
+   * Override this in child classes to transform or validate data
+   */
+  protected beforeCreate?(data: TInsert): Promise<TInsert> | TInsert;
+
+  /**
+   * Hook called after creating a record
+   * Override this in child classes for post-creation actions
+   */
+  protected afterCreate?(created: TSelect): Promise<void> | void;
+
+  /**
+   * Hook called before updating a record
+   * Override this in child classes to transform or validate data
+   */
+  protected beforeUpdate?(id: number | string, data: Partial<TInsert>): Promise<Partial<TInsert>> | Partial<TInsert>;
+
+  /**
+   * Hook called after updating a record
+   * Override this in child classes for post-update actions
+   */
+  protected afterUpdate?(updated: TSelect): Promise<void> | void;
+
+  /**
+   * Hook called before deleting a record
+   * Override this in child classes to prevent deletion or perform cleanup
+   */
+  protected beforeDelete?(id: number | string): Promise<void> | void;
+
+  /**
+   * Hook called after deleting a record
+   * Override this in child classes for post-deletion actions
+   */
+  protected afterDelete?(id: number | string): Promise<void> | void;
+
+  /**
+   * Check if deletion is allowed
+   * Override this in child classes to add custom deletion rules
+   */
+  protected canDelete?(id: number | string): Promise<{ allowed: boolean; reason?: string }> | { allowed: boolean; reason?: string };
+
+  // ==================== CRUD OPERATIONS ====================
 
   async create(data: TInsert): Promise<ModelResponse<TSelect>> {
     try {
-      const result = await db.insert(this.table).values(data as any).returning() as TSelect[];
+      // Call beforeCreate hook if defined
+      let processedData = data;
+      if (this.beforeCreate) {
+        processedData = await this.beforeCreate(data);
+      }
+
+      const result = await db.insert(this.table).values(processedData as any).returning() as TSelect[];
       
       if (!result || result.length === 0) {
         return {
           success: false,
           error: 'Failed to create record'
         };
+      }
+
+      // Call afterCreate hook if defined
+      if (this.afterCreate) {
+        await this.afterCreate(result[0]);
       }
 
       return {
@@ -70,9 +142,17 @@ export abstract class BaseModel<TSelect, TInsert> {
   /**
    * Get record by ID
    */
-  async findById(id: number): Promise<ModelResponse<TSelect>> {
+  async findById(id: number | string): Promise<ModelResponse<TSelect>> {
     try {
-      const result = await db.select().from(this.table).where(eq(this.table.id, id));
+      const pkField = this.table[this.primaryKey];
+      if (!pkField) {
+        return {
+          success: false,
+          error: `Primary key field '${this.primaryKey}' not found`
+        };
+      }
+
+      const result = await db.select().from(this.table).where(eq(pkField, id));
 
       if (!result || result.length === 0) {
         return {
@@ -111,7 +191,6 @@ export abstract class BaseModel<TSelect, TInsert> {
 
       let searchValue = value;
       
-      // Apply transformation if provided
       if (options?.transformValue) {
         searchValue = options.transformValue(value);
       } else if (typeof value === 'string' && !options?.caseSensitive) {
@@ -153,7 +232,7 @@ export abstract class BaseModel<TSelect, TInsert> {
       const {
         page = 1,
         limit = 10,
-        sortBy = 'createdAt',
+        sortBy = this.createdAtField,
         sortOrder = 'desc',
         query,
         filters = {}
@@ -189,8 +268,8 @@ export abstract class BaseModel<TSelect, TInsert> {
       const countResult = await db.select({ total: count() }).from(this.table).where(whereClause);
       const total = countResult[0]?.total || 0;
 
-      // Get records
-      const sortColumn = this.table[sortBy] || this.table.createdAt || this.table.id;
+      // Get records - use configurable sort field
+      const sortColumn = this.table[sortBy] || this.table[this.createdAtField] || this.table[this.primaryKey];
       const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
       const records = await db
@@ -225,15 +304,42 @@ export abstract class BaseModel<TSelect, TInsert> {
   /**
    * Update record by ID
    */
-  async update(id: number, data: Partial<TInsert>): Promise<ModelResponse<TSelect>> {
+  async update(id: number | string, data: Partial<TInsert>): Promise<ModelResponse<TSelect>> {
     try {
+      // Check if record exists
+      const recordExists = await this.exists(id);
+      if (!recordExists) {
+        return {
+          success: false,
+          error: 'Record not found'
+        };
+      }
+
+      const pkField = this.table[this.primaryKey];
+      if (!pkField) {
+        return {
+          success: false,
+          error: `Primary key field '${this.primaryKey}' not found`
+        };
+      }
+
+      // Call beforeUpdate hook if defined
+      let processedData = data;
+      if (this.beforeUpdate) {
+        processedData = await this.beforeUpdate(id, data);
+      }
+
+      const updateData: any = { ...processedData };
+      
+      // Add updated timestamp if the field exists
+      if (this.table[this.updatedAtField]) {
+        updateData[this.updatedAtField] = new Date();
+      }
+
       const result = await db
         .update(this.table)
-        .set({
-          ...data,
-          updatedAt: new Date()
-        })
-        .where(eq(this.table.id, id))
+        .set(updateData)
+        .where(eq(pkField, id))
         .returning();
 
       if (!result || result.length === 0) {
@@ -241,6 +347,11 @@ export abstract class BaseModel<TSelect, TInsert> {
           success: false,
           error: 'Record not found'
         };
+      }
+
+      // Call afterUpdate hook if defined
+      if (this.afterUpdate) {
+        await this.afterUpdate(result[0]);
       }
 
       return {
@@ -260,7 +371,7 @@ export abstract class BaseModel<TSelect, TInsert> {
   /**
    * Soft delete (if isActive field exists)
    */
-  async softDelete(id: number): Promise<ModelResponse<boolean>> {
+  async softDelete(id: number | string): Promise<ModelResponse<boolean>> {
     try {
       if (!this.table.isActive) {
         return {
@@ -269,13 +380,18 @@ export abstract class BaseModel<TSelect, TInsert> {
         };
       }
 
+      const pkField = this.table[this.primaryKey];
+      const updateData: any = { isActive: false };
+      
+      // Add updated timestamp if the field exists
+      if (this.table[this.updatedAtField]) {
+        updateData[this.updatedAtField] = new Date();
+      }
+
       const result = await db
         .update(this.table)
-        .set({ 
-          isActive: false, 
-          updatedAt: new Date() 
-        })
-        .where(eq(this.table.id, id));
+        .set(updateData)
+        .where(eq(pkField, id));
 
       const success = (result.rowCount ?? 0) > 0;
 
@@ -296,10 +412,48 @@ export abstract class BaseModel<TSelect, TInsert> {
   /**
    * Hard delete
    */
-  async delete(id: number): Promise<ModelResponse<boolean>> {
+  async delete(id: number | string): Promise<ModelResponse<boolean>> {
     try {
-      const result = await db.delete(this.table).where(eq(this.table.id, id));
+      // Check if record exists
+      const recordExists = await this.exists(id);
+      if (!recordExists) {
+        return {
+          success: false,
+          error: 'Record not found'
+        };
+      }
+
+      // Check if deletion is allowed via canDelete hook
+      if (this.canDelete) {
+        const deleteCheck = await this.canDelete(id);
+        if (!deleteCheck.allowed) {
+          return {
+            success: false,
+            error: deleteCheck.reason || 'Deletion not allowed'
+          };
+        }
+      }
+
+      const pkField = this.table[this.primaryKey];
+      if (!pkField) {
+        return {
+          success: false,
+          error: `Primary key field '${this.primaryKey}' not found`
+        };
+      }
+
+      // Call beforeDelete hook if defined
+      if (this.beforeDelete) {
+        await this.beforeDelete(id);
+      }
+
+      const result = await db.delete(this.table).where(eq(pkField, id));
       const success = (result.rowCount ?? 0) > 0;
+
+      // Call afterDelete hook if defined
+      if (this.afterDelete && success) {
+        await this.afterDelete(id);
+      }
 
       return {
         success,
@@ -318,19 +472,70 @@ export abstract class BaseModel<TSelect, TInsert> {
   // ==================== UTILITY METHODS ====================
 
   /**
-   * Check if record exists
+   * Check if record exists by ID
    */
-  async exists(id: number): Promise<boolean> {
+  async exists(id: number | string): Promise<boolean> {
     try {
-      const result = await db
-        .select({ id: this.table.id })
-        .from(this.table)
-        .where(eq(this.table.id, id))
-        .limit(1);
+      const pkField = this.table[this.primaryKey];
+      if (!pkField) return false;
+
+      const result = await db.select().from(this.table).where(eq(pkField, id)).limit(1);
 
       return result.length > 0;
     } catch (error) {
       console.error(`${this.tableName} exists check error:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if record exists by specific field
+   * Useful for checking uniqueness (e.g., email, username, code)
+   */
+  async existsByField(fieldName: string, value: string | number | boolean, excludeId?: number | string): Promise<boolean> {
+    try {
+      if (!this.table[fieldName]) {
+        console.warn(`Field '${fieldName}' does not exist in ${this.tableName} table`);
+        return false;
+      }
+
+      const pkField = this.table[this.primaryKey];
+      const conditions: SQL[] = [eq(this.table[fieldName], value)];
+
+      // Exclude current record if ID is provided (useful for updates)
+      if (excludeId !== undefined && pkField) {
+        conditions.push(ne(pkField, excludeId));
+      }
+
+      const whereClause = conditions.length > 1 ? and(...conditions) : conditions[0];
+      const result = await db.select().from(this.table).where(whereClause).limit(1);
+
+      return result.length > 0;
+    } catch (error) {
+      console.error(`${this.tableName} existsByField check error:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if any record exists matching the given conditions
+   */
+  async existsByConditions(conditions: Record<string, string | number | boolean>): Promise<boolean> {
+    try {
+      const whereConditions = Object.entries(conditions)
+        .filter(([key]) => this.table[key])
+        .map(([key, value]) => eq(this.table[key], value));
+
+      if (whereConditions.length === 0) {
+        return false;
+      }
+
+      const whereClause = whereConditions.length > 1 ? and(...whereConditions) : whereConditions[0];
+      const result = await db.select().from(this.table).where(whereClause).limit(1);
+
+      return result.length > 0;
+    } catch (error) {
+      console.error(`${this.tableName} existsByConditions check error:`, error);
       return false;
     }
   }

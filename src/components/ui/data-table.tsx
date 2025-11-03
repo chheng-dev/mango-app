@@ -143,6 +143,35 @@ export function DataTable<TData, TValue>({
   const [bulkActionLoading, setBulkActionLoading] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [pendingAction, setPendingAction] = useState<any>(null)
+  const [showScrollIndicator, setShowScrollIndicator] = useState({ left: false, right: false })
+  const tableContainerRef = React.useRef<HTMLDivElement>(null)
+
+  // Check scroll position to show/hide scroll indicators
+  const checkScrollPosition = useCallback(() => {
+    const container = tableContainerRef.current
+    if (!container) return
+
+    const { scrollLeft, scrollWidth, clientWidth } = container
+    const isScrollable = scrollWidth > clientWidth
+    
+    setShowScrollIndicator({
+      left: isScrollable && scrollLeft > 10,
+      right: isScrollable && scrollLeft < scrollWidth - clientWidth - 10
+    })
+  }, [])
+
+  useEffect(() => {
+    checkScrollPosition()
+    const container = tableContainerRef.current
+    if (container) {
+      container.addEventListener('scroll', checkScrollPosition)
+      window.addEventListener('resize', checkScrollPosition)
+      return () => {
+        container.removeEventListener('scroll', checkScrollPosition)
+        window.removeEventListener('resize', checkScrollPosition)
+      }
+    }
+  }, [checkScrollPosition, data])
 
   useEffect(() => {
     if (pagination) {
@@ -466,11 +495,37 @@ export function DataTable<TData, TValue>({
             </div>
           )}
 
-          {/* Table - Enhanced responsive design with better font sizing */}
-          <div className="rounded-md md:rounded-lg border bg-background shadow-none overflow-hidden">
+          {/* Table - Enhanced responsive design with better font sizing and scroll indicators */}
+          <div className="rounded-md md:rounded-lg border bg-background shadow-none overflow-hidden relative">
             {isLoading || table.getRowModel().rows?.length ? (
-              <div className="overflow-x-auto">
-                <Table className="min-w-full">
+              <div className="relative">
+                {/* Left scroll indicator */}
+                {showScrollIndicator.left && (
+                  <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background/95 via-background/80 to-transparent z-10 pointer-events-none flex items-center justify-start pl-1">
+                    <div className="w-6 h-6 rounded-full bg-background/90 backdrop-blur-sm shadow-md flex items-center justify-center border border-border/50">
+                      <ChevronDown className="h-4 w-4 text-muted-foreground -rotate-90" />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Right scroll indicator */}
+                {showScrollIndicator.right && (
+                  <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background/95 via-background/80 to-transparent z-10 pointer-events-none flex items-center justify-end pr-1">
+                    <div className="w-6 h-6 rounded-full bg-background/90 backdrop-blur-sm shadow-md flex items-center justify-center border border-border/50">
+                      <ChevronDown className="h-4 w-4 text-muted-foreground rotate-90" />
+                    </div>
+                  </div>
+                )}
+                
+                <div 
+                  ref={tableContainerRef}
+                  className="overflow-x-auto overflow-y-visible scroll-smooth scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/30"
+                  style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'hsl(var(--muted-foreground) / 0.2) transparent'
+                  }}
+                >
+                  <Table className="min-w-full">
                   <TableHeader className="bg-muted/30">
                     {table.getHeaderGroups().map(headerGroup => (
                       <TableRow key={headerGroup.id} className="border-b hover:bg-transparent">
@@ -554,6 +609,7 @@ export function DataTable<TData, TValue>({
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             ) : (
               <div className="h-60 md:h-80 flex items-center justify-center">

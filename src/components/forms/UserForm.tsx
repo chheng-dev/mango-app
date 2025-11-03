@@ -68,7 +68,8 @@ export const UserForm = forwardRef<UserFormRef, UserFormProps>(({
       handleSubmit();
     },
     triggerValidation: async () => {
-      return await form.trigger();
+      const result = await form.trigger();
+      return result;
     },
     isValid,
     isDirty,
@@ -93,7 +94,6 @@ export const UserForm = forwardRef<UserFormRef, UserFormProps>(({
           <CardContent>
             <Form {...form}>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Basic Information */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}

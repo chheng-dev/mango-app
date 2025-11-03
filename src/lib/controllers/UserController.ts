@@ -18,6 +18,11 @@ export class UserController extends ModelController<UserSelect, UserInsert, User
     super(new UserModel());
   }
 
+  async getAll(options?: { page?: number; limit?: number; query?: string; sortBy?: string; sortOrder?: 'asc' | 'desc'; filters?: Record<string, string | number | boolean>; isSuperAdmin?: boolean }) {
+    const result = await this.model.list({ isSuperAdmin: options?.isSuperAdmin });
+    return this.convertResponse<UserSelect[]>(result as any);
+  }
+
   async getWithRoles(userId: number) {
     const result = await this.model.findByIdWithRoleId(userId);
     return this.convertResponse<UserSelect & { roleId?: number; roles?: number[] }>(result as any);
@@ -61,6 +66,18 @@ export class UserController extends ModelController<UserSelect, UserInsert, User
   async bulkUpdateStatus(userIds: number[], isActive: boolean): Promise<ApiResponse<boolean>> {
     const result = await this.model.bulkUpdate(userIds, { isActive });
     return this.convertResponse<boolean>(result);
+  }
+
+  async getUserPermissions(userId: number): Promise<string[]> {
+    return await this.model.getUserPermissions(userId);
+  }
+
+  async getUserRoles(userId: number): Promise<string[]> {
+    return await this.model.getUserRoles(userId);
+  }
+
+  async isSuperAdmin(userId: number): Promise<boolean> {
+    return await this.model.isSuperAdmin(userId);
   }
 
   protected validateCreateData(data: UserInsert): ApiResponse<any> | null {

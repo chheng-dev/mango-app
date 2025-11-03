@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Shield } from 'lucide-react';
 import { ComboboxOption, MultiSelectCombobox } from '@/components/ui/multi-select-combobox';
+import { useRoles } from '@/hooks/useRoles';
 
 interface Role {
   id: number;
@@ -22,14 +23,10 @@ interface RoleAssignmentProps {
 }
 
 export function RoleAssignment({ form, mode }: RoleAssignmentProps) {
-  const { data: rolesResponse, isLoading } = useQuery({
-    queryKey: ['roles', 'available'],
-    queryFn: async () => {
-      const response = await fetch('/api/roles');
-      if (!response.ok) throw new Error('Failed to fetch roles');
-      return response.json();
-    },
-  });
+  const {
+    roles: rolesResponse,
+    loading: isLoading,
+  } = useRoles();
 
   useEffect(() => {
     const currentRoles = form.getValues('roles');
@@ -38,7 +35,7 @@ export function RoleAssignment({ form, mode }: RoleAssignmentProps) {
     }
   }, [form]);
 
-  const roles: Role[] = rolesResponse?.data || [];
+  const roles: any[] = rolesResponse || [];
 
   const roleOptions: ComboboxOption[] = roles.map(role => ({
     id: role.id,

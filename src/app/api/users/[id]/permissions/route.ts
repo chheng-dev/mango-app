@@ -1,26 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getUserPermissions, getUserRoles, isSuperAdmin } from '@/lib/services/rbac-service';
-import { BaseRoute, handleProtectedRoute, handleApiResponse, createProtectedRoute } from '@/lib/utils/BaseRoute';
-import { PERMISSIONS } from '@/lib/constants/permissions';
+import { protectRoute } from '@/lib/auth/unified';
+import { userController } from '@/lib/controllers/UserController';
+import { BaseRoute, handleApiResponse } from '@/lib/utils/BaseRoute';
 
-type Params = {
-  params: { 
-    id: string;
-  };
-}
-
-export const GET = createProtectedRoute(async (request, { user, params }) => {
+export const GET = protectRoute(async (request, { user, params }) => {
   const userId = Number(params?.id);
   
   if (isNaN(userId) || userId <= 0) {
     return BaseRoute.errorResponse('Invalid user ID', 400);
   }
 
-  const [permissions, roles, userIsSuperAdmin] = await Promise.all([
-    getUserPermissions(userId),
-    getUserRoles(userId),
-    isSuperAdmin(userId)
-  ]);
+  const permissions = await userController.getUserPermissions(userId);
+  const roles = await userController.getUserRoles(userId);
+  const userIsSuperAdmin = await userController.isSuperAdmin(userId);
 
   const result = {
     success: true,
@@ -35,8 +26,5 @@ export const GET = createProtectedRoute(async (request, { user, params }) => {
       isSuperAdmin: userIsSuperAdmin
     }
   };
-
   return handleApiResponse(result, user?.email);
-}, {
-  requiredPermissions: [PERMISSIONS.USER_READ]
 });

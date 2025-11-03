@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server';
 import { permissionController } from '@/lib/controllers/PermissionController';
-import { handleApiResponse, handleProtectedRoute } from '@/lib/utils/BaseRoute';
+import { handleApiResponse } from '@/lib/utils/BaseRoute';
 import { PERMISSIONS } from '@/lib/constants/permissions';
+import { protectRoute } from '@/lib/auth/unified';
 
-export const GET = handleProtectedRoute(async (request: NextRequest, { auth }) => {
+export const GET = protectRoute(async (request, { user, params }) => {
   const result = await permissionController.getPermissionsGroupedByResource();
-  return handleApiResponse(result, auth.user?.email);
-}, { requiredPermissions: [PERMISSIONS.PERMISSION_READ]});
+  return handleApiResponse(result, user?.email);
+});

@@ -5,12 +5,16 @@ import { CheckCircle, Trash2, XCircle } from 'lucide-react';
 import { usePermissionsTableConfig } from '@/components/admin/permissions/PermissionsTableConfig';
 import { HeaderComp } from '@/components/share/header-comp';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Permission } from '@/lib/types/permission';
+import { toast } from 'sonner';
+import { PERMISSIONS } from '@/lib/constants/permissions';
 
 export default function PermissionsPage() {
   const router = useRouter();
+  const { hasPermission } = useUserPermissions();
 
   const {
     permissions,
@@ -21,40 +25,66 @@ export default function PermissionsPage() {
 
   const { columns } = usePermissionsTableConfig();
 
-  const bulkActions = {
-    actions: [
-      {
-        label: 'Activate',
-        icon: CheckCircle,
-        variant: 'success' as const,
-      },
-      {
-        label: 'Deactivate',
-        icon: XCircle,
-        variant: 'warning' as const,
-      },
-      {
-        label: 'Delete',
-        icon: Trash2,
-        variant: 'destructive' as const,
-        requiresConfirmation: true,
-        confirmTitle: 'Delete Permission',
-        confirmMessage: 'Are you sure you want to delete this permission?',
-        confirmButtonText: 'Delete',
-        onClick: async (selectedPermissions: typeof permissions) => {
-          try {
-            await Promise.all(
-              selectedPermissions.map(async (permission) => {
-                return deletePermission((permission as any).id);
-              })
-            );
-            await fetchPermissions();
-          } catch (error) {
-            console.error('Failed to delete permissions:', error);
-          }
+  const allBulkActions = [
+    {
+      label: 'Activate',
+      icon: CheckCircle,
+      variant: 'success' as const,
+      requiredPermission: [PERMISSIONS.PERMISSIONS_UPDATE],
+      onClick: async (selectedPermissions: typeof permissions) => {
+        try {
+          // Add your activation logic here
+          toast.success(`${selectedPermissions.length} permissions activated successfully`);
+        } catch (error) {
+          console.error('Failed to activate permissions:', error);
+          toast.error('Failed to activate permissions');
         }
       }
-    ],
+    },
+    {
+      label: 'Deactivate',
+      icon: XCircle,
+      variant: 'warning' as const,
+      requiredPermission: [PERMISSIONS.PERMISSIONS_UPDATE],
+      onClick: async (selectedPermissions: typeof permissions) => {
+        try {
+          toast.success(`${selectedPermissions.length} permissions deactivated successfully`);
+        } catch (error) {
+          console.error('Failed to deactivate permissions:', error);
+          toast.error('Failed to deactivate permissions');
+        }
+      }
+    },
+    {
+      label: 'Delete',
+      icon: Trash2,
+      variant: 'destructive' as const,
+      requiredPermission: 'permissions_delete',
+      requiresConfirmation: true,
+      confirmTitle: 'Delete Permission',
+      confirmMessage: 'Are you sure you want to delete this permission?',
+      confirmButtonText: 'Delete',
+      onClick: async (selectedPermissions: typeof permissions) => {
+        try {
+          await Promise.all(
+            selectedPermissions.map(async (permission) => {
+              return deletePermission((permission as any).id);
+            })
+          );
+          await fetchPermissions();
+          toast.success(`${selectedPermissions.length} permissions deleted successfully`);
+        } catch (error) {
+          console.error('Failed to delete permissions:', error);
+          toast.error('Failed to delete permissions');
+        }
+      }
+    }
+  ];
+
+  const bulkActions = {
+    actions: allBulkActions.filter(action => 
+      hasPermission([action.requiredPermission as any])
+    ),
   };
 
   const handleCreatePermission = useCallback(( ) => {
@@ -72,6 +102,8 @@ export default function PermissionsPage() {
         btnAdd="Add Permission"
         title="Permission Management"
         description="Manage permissions for roles and users"
+        requiresExportPermission={PERMISSIONS.PERMISSIONS_EXPORT}
+        requiresCreatePermission={PERMISSIONS.PERMISSIONS_CREATE}
       />
       
       <DataTable

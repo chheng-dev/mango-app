@@ -18,6 +18,7 @@ import { User } from '@/lib/types/user';
 import { toast } from "sonner";
 import { ColumnDef } from '@tanstack/react-table';
 import { HeaderComp } from '@/components/share/header-comp';
+import { PERMISSIONS } from '@/lib/constants/permissions';
 
 export default function UsersPage() {
   const router = useRouter();
@@ -136,6 +137,15 @@ export default function UsersPage() {
       )
     },
     {
+      accessorKey: 'role',
+      header: 'Role',
+      cell: ({ row }) => (
+        <Badge>
+          {row.original.role ? row.original.role : 'No Role Assigned'}
+        </Badge>
+      )
+    },
+    {
       accessorKey: 'email',
       header: 'Contact Info',
       cell: ({ row }) => (
@@ -195,6 +205,8 @@ export default function UsersPage() {
         title="User Management"
         description="Manage your users effectively"
         btnAdd="Add User"
+        requiresExportPermission={PERMISSIONS.USERS_EXPORT}
+        requiresCreatePermission={PERMISSIONS.USERS_CREATE}
       />
       
       <DataTable

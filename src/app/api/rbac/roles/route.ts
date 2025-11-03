@@ -1,14 +1,17 @@
 import { roleController } from '@/lib/controllers/RoleController';
-import { createProtectedRoute, handleApiResponse } from '@/lib/utils/BaseRoute';
-import { PERMISSIONS } from '@/lib/constants/permissions';
+import { handleApiResponse } from '@/lib/utils/BaseRoute';
+import { protectRoute } from '@/lib/auth/unified';
+import { userController } from '@/lib/controllers/UserController';
 
-export const GET  = createProtectedRoute(async (request, { user }) => {
-  const result = await roleController.getAll();
+export const GET = protectRoute(async (request, { user }) => {
+  const isSuperAdmin = await userController.isSuperAdmin(user!.id);
+  
+  const result = await roleController.getAll({ isSuperAdmin });
   return handleApiResponse(result, user?.email);
-}, { requiredPermissions: [PERMISSIONS.ROLE_READ] });
+});
 
-export const POST = createProtectedRoute(async (request, { user }) => {
+export const POST = protectRoute(async (request, { user }) => {
   const data = await request.json();
   const result = await roleController.create(data);
   return handleApiResponse(result, user?.email);
-}, { requiredPermissions: [PERMISSIONS.ROLE_CREATE] });
+});

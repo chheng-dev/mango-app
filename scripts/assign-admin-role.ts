@@ -4,6 +4,7 @@
  * Assign admin role to specific user by email
  */
 
+import { userController } from '@/lib/controllers/UserController';
 import { db } from '../src/lib/db';
 import { roles } from '../src/lib/db/schemas/roles';
 import { userRoles } from '../src/lib/db/schemas/user_roles';
@@ -58,8 +59,7 @@ async function assignAdminRole(userEmail: string) {
     console.log('✅ Successfully assigned admin role to user');
     
     // Test permissions
-    const { getUserPermissions } = await import('../src/lib/services/rbac-service');
-    const permissions = await getUserPermissions(user[0].id);
+    const permissions = await userController.getUserPermissions(user[0].id);
     console.log(`🔐 User now has ${permissions.length} permissions:`, permissions);
     
   } catch (error: any) {

@@ -17,7 +17,7 @@ async function main() {
     if (cleanup) {
       console.log('\n🧹 Running cleanup...');
       const cleanupResult = await cleanupOrphanedPermissionsAndRoles();
-      console.log('\n📊 Cleanup Summary:', cleanupResult.deactivated);
+      console.log('\n📊 Cleanup Summary:', cleanupResult.cleaned);
     }
     
     console.log('\n✅ RBAC sync completed successfully!');

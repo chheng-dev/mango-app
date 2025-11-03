@@ -8,8 +8,8 @@ export class RoleController extends ModelController<RoleSelect, RoleInsert, Role
     super(new RoleModel());
   }
 
-  async getAll(params?: { page?: number; limit?: number; search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) {
-    const result = await this.model.list( params );
+  async getAll(options?: { page?: number; limit?: number; query?: string; sortBy?: string; sortOrder?: 'asc' | 'desc'; filters?: Record<string, string | number | boolean>; isSuperAdmin?: boolean }) {
+    const result = await this.model.list({ isSuperAdmin: options?.isSuperAdmin });
     return this.convertResponse<RoleSelect[]>(result as any);
   }
 
@@ -18,8 +18,13 @@ export class RoleController extends ModelController<RoleSelect, RoleInsert, Role
     return this.convertResponse<RoleSelect>(result as any);
   }
 
-  async getRoleWithPermissions(id: number): Promise<ApiResponse<RoleSelect & { permissions: string[] }>> {
-    const result = await this.model.findWithPermissions(id);
+  async getById(id: number, options?: { isSuperAdmin?: boolean }): Promise<ApiResponse<RoleSelect>> {
+    const result = await this.model.findById(id, options);
+    return this.convertResponse<RoleSelect>(result as any);
+  }
+
+  async getRoleWithPermissions(id: number, options?: { isSuperAdmin?: boolean }): Promise<ApiResponse<RoleSelect & { permissions: string[] }>> {
+    const result = await this.model.findWithPermissions(id, options);
     return this.convertResponse<RoleSelect & { permissions: string[] }>(result as any);
   }
 

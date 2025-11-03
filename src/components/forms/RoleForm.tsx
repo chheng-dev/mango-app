@@ -47,7 +47,6 @@ export const RoleForm = forwardRef<RoleFormRef, RoleFormProps>(({
   roleId,
   mode,
   onSuccess,
-  onCancel 
 }, ref) => {
   const {
     handleSubmit,

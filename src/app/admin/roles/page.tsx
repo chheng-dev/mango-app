@@ -8,10 +8,12 @@ import { useRoles } from '@/hooks/useRoles';
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { Role } from '@/lib/types/role';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 export default function RolesManagementPage() {
   const router = useRouter();
+  const { hasPermission } = useUserPermissions();
 
   const {
     roles,
@@ -45,19 +47,24 @@ export default function RolesManagementPage() {
     }
   };
 
+  const allBulkActions = [
+    {
+      label: 'Delete',
+      icon: Trash2,
+      variant: 'destructive' as const,
+      requiresPermission: [PERMISSIONS.ROLES_DELETE],
+      requiresConfirmation: true,
+      confirmTitle: 'Delete Roles',
+      confirmMessage: 'Are you sure you want to delete the selected roles? This action cannot be undone.',
+      confirmButtonText: 'Delete',
+      onClick: handleDeleteRole,
+    },
+  ];
+
   const bulkActions = {
-    actions: [
-      {
-        label: 'Delete',
-        icon: Trash2,
-        variant: 'destructive' as const,
-        requiresConfirmation: true,
-        confirmTitle: 'Delete Roles',
-        confirmMessage: 'Are you sure you want to delete the selected roles? This action cannot be undone.',
-        confirmButtonText: 'Delete',
-        onClick: handleDeleteRole,
-      },
-    ]
+    actions: allBulkActions.filter(action => {
+      return hasPermission([action.requiresPermission as any])
+    })
   }
 
 
@@ -67,6 +74,8 @@ export default function RolesManagementPage() {
         onAdd={handleCreateRole}
         btnAdd="Add Role"
         title="Role Management"
+        requiresCreatePermission={PERMISSIONS.ROLES_CREATE}
+        requiresExportPermission={PERMISSIONS.ROLES_EXPORT}
         description="Manage roles and their permissions"
       />
       <DataTable

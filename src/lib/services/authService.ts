@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { users } from "../db/schema";
 import bcrypt from "bcryptjs";
-import { getUserPermissions } from "./rbac-service";
+import { userController } from "../controllers/UserController";
 
 export async function authenticateUser(email: string, password: string) {
   const [user] = await db.select()
@@ -24,6 +24,6 @@ export async function authenticateUser(email: string, password: string) {
 }
 
 export async function buildUserClaims(userId: number) {
-  const permissions = await getUserPermissions(userId);
+  const permissions = await userController.getUserPermissions(userId);
   return { permissions };
 }

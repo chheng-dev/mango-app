@@ -3,7 +3,7 @@ import { permissions } from '../db/schemas/permissions';
 import { rolePermissions } from '../db/schemas/role_permission';
 import { users } from '../db/schemas/users';
 import { userRoles } from '../db/schemas/user_roles';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql, ne } from 'drizzle-orm';
 import { db } from '../db';
 import { BaseModel } from "./BaseModel";
 
@@ -55,9 +55,47 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
     );
   }
 
-  async list(params?: { page?: number; limit?: number; search?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }) {  
+  /**
+   * Override findById to hide super-admin role from non-super-admins
+   */
+  async findById(id: number, options?: { isSuperAdmin?: boolean }) {
     try {
-      const allRoles = await db
+      const conditions = [eq(roles.id, id)];
+      
+      // Only hide super-admin if requester is not a super-admin
+      if (!options?.isSuperAdmin) {
+        conditions.push(ne(roles.slug, 'super-admin'));
+      }
+
+      const result = await db
+        .select()
+        .from(roles)
+        .where(and(...conditions))
+        .limit(1);
+
+      if (!result || result.length === 0) {
+        return {
+          success: false,
+          error: 'Role not found'
+        };
+      }
+
+      return {
+        success: true,
+        data: result[0]
+      };
+    } catch (error) {
+      console.error('RoleModel findById error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch role'
+      };
+    }
+  }
+
+  async list(options?: { isSuperAdmin?: boolean }) {  
+    try {
+      const query = db
         .select(
           {
             id: roles.id,
@@ -73,9 +111,12 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
         )
         .from(roles)
         .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
-        .leftJoin(userRoles, eq(roles.id, userRoles.roleId))
-        .groupBy(roles.id)
-        .orderBy(roles.createdAt);
+        .leftJoin(userRoles, eq(roles.id, userRoles.roleId));
+
+      // Only hide super-admin if requester is not a super-admin
+      const allRoles = options?.isSuperAdmin 
+        ? await query.groupBy(roles.id).orderBy(roles.createdAt)
+        : await query.where(ne(roles.slug, 'super-admin')).groupBy(roles.id).orderBy(roles.createdAt);
 
       return {
         success: true,
@@ -90,8 +131,15 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
     }
   }
   
-  async findWithPermissions(roleId: number) {
+  async findWithPermissions(roleId: number, options?: { isSuperAdmin?: boolean }) {
     try {
+      const conditions = [eq(roles.id, roleId)];
+      
+      // Only hide super-admin if requester is not a super-admin
+      if (!options?.isSuperAdmin) {
+        conditions.push(ne(roles.slug, 'super-admin'));
+      }
+
       const roleWithPermissions = await db
         .select({
           id: roles.id,
@@ -113,7 +161,7 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
         .from(roles)
         .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
         .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-        .where(eq(roles.id, roleId));
+        .where(and(...conditions));
 
       if (!roleWithPermissions.length) {
         return {
@@ -163,8 +211,15 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
   /**
    * Find role with its assigned users
    */
-  async findWithUsers(roleId: number) {
+  async findWithUsers(roleId: number, options?: { isSuperAdmin?: boolean }) {
     try {
+      const conditions = [eq(roles.id, roleId)];
+      
+      // Only hide super-admin if requester is not a super-admin
+      if (!options?.isSuperAdmin) {
+        conditions.push(ne(roles.slug, 'super-admin'));
+      }
+
       const roleWithUsers = await db
         .select({
           id: roles.id,
@@ -185,7 +240,7 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
         .from(roles)
         .leftJoin(userRoles, eq(roles.id, userRoles.roleId))
         .leftJoin(users, eq(userRoles.userId, users.id))
-        .where(eq(roles.id, roleId));
+        .where(and(...conditions));
 
       if (!roleWithUsers.length) {
         return {
@@ -237,6 +292,15 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
    */
   async assignPermissions(roleId: number, permissionIds: number[]) {
     try {
+      // Prevent assigning permissions to super-admin role
+      const roleResult = await this.findById(roleId);
+      if (roleResult.success && roleResult.data?.slug === 'super-admin') {
+        return {
+          success: false,
+          error: 'Cannot modify permissions for super-admin role'
+        };
+      }
+
       if (permissionIds.length === 0) {
         return { success: true, data: [] };
       }
@@ -269,7 +333,16 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
   }
 
   async updatePermissionsForRole(roleId: number, permissionIds: number[]) {
-      try {
+    try {
+      // Prevent updating permissions for super-admin role
+      const roleResult = await this.findById(roleId);
+      if (roleResult.success && roleResult.data?.slug === 'super-admin') {
+        return {
+          success: false,
+          error: 'Cannot modify permissions for super-admin role'
+        };
+      }
+
       const result = await db.transaction(async (tx) => {
         await db
           .delete(rolePermissions)
@@ -302,13 +375,20 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
         error: error instanceof Error ? error.message : 'Failed to update role permissions'
       };
     }
-  }
-
-  /**
+  }  /**
    * Remove permissions from role
    */
   async removePermissions(roleId: number, permissionIds: number[]) {
     try {
+      // Prevent removing permissions from super-admin role
+      const roleResult = await this.findById(roleId);
+      if (roleResult.success && roleResult.data?.slug === 'super-admin') {
+        return {
+          success: false,
+          error: 'Cannot modify permissions for super-admin role'
+        };
+      }
+
       if (permissionIds.length === 0) {
         return { success: true, data: true };
       }
@@ -341,6 +421,15 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
    */
   async clearPermissions(roleId: number) {
     try {
+      // Prevent clearing permissions from super-admin role
+      const roleResult = await this.findById(roleId);
+      if (roleResult.success && roleResult.data?.slug === 'super-admin') {
+        return {
+          success: false,
+          error: 'Cannot modify permissions for super-admin role'
+        };
+      }
+
       const result = await db
         .delete(rolePermissions)
         .where(eq(rolePermissions.roleId, roleId));
@@ -444,6 +533,65 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
     } catch (error) {
       console.error('RoleModel existsByName error:', error);
       return false;
+    }
+  }
+
+  /**
+   * Override update to prevent modifying super-admin role
+   */
+  async update(id: number, data: Partial<RoleInsert>) {
+    try {
+      // Check if this is the super-admin role
+      const roleResult = await this.findById(id);
+      if (!roleResult.success) {
+        return roleResult;
+      }
+
+      if (roleResult.data?.slug === 'super-admin') {
+        return {
+          success: false,
+          error: 'Cannot modify super-admin role'
+        };
+      }
+
+      return super.update(id, data);
+    } catch (error) {
+      console.error('RoleModel update error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update role'
+      };
+    }
+  }
+
+  /**
+   * Override delete to prevent deleting super-admin role
+   */
+  async delete(id: number): Promise<{ success: boolean; data?: boolean; error?: string; message?: string }> {
+    try {
+      // Check if this is the super-admin role
+      const roleResult = await this.findById(id);
+      if (!roleResult.success) {
+        return {
+          success: false,
+          error: 'Role not found'
+        };
+      }
+
+      if (roleResult.data?.slug === 'super-admin') {
+        return {
+          success: false,
+          error: 'Cannot delete super-admin role'
+        };
+      }
+
+      return super.delete(id);
+    } catch (error) {
+      console.error('RoleModel delete error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete role'
+      };
     }
   }
 }

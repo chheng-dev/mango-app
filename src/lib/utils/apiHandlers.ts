@@ -1,13 +1,10 @@
 import { NextRequest } from 'next/server';
-import { BaseRoute, handleProtectedRoute, handleApiResponse } from '@/lib/utils/BaseRoute';
-import { PermissionChecker, validateResourceAccess, ResourcePermissionConfig, USER_PERMISSIONS, ROLE_PERMISSIONS, PERMISSION_PERMISSIONS } from '@/lib/utils/permissions';
+import { BaseRoute, handleApiResponse } from '@/lib/utils/BaseRoute';
+import { PermissionChecker } from '@/lib/utils/permissions';
+import { protectRoute } from '../auth/unified';
 
 /**
- * Utility functions for API route handlers with better architecture
- */
-
-/**
- * Extract and validate ID from URL path
+ * Extract ID from URL path
  */
 export function extractIdFromPath(request: NextRequest): { id: number; error?: any } {
   const url = new URL(request.url);
@@ -16,7 +13,7 @@ export function extractIdFromPath(request: NextRequest): { id: number; error?: a
   if (!idString || isNaN(Number(idString))) {
     return { 
       id: 0, 
-      error: BaseRoute.errorResponse('Invalid user ID', 400) 
+      error: BaseRoute.errorResponse('Invalid resource ID', 400) 
     };
   }
 
@@ -24,33 +21,31 @@ export function extractIdFromPath(request: NextRequest): { id: number; error?: a
 }
 
 /**
- * Create a resource handler with permission checking for any resource type
+ * Create a simple resource handler with permission checking
  */
-export function createResourceHandler<T = any, C extends ResourcePermissionConfig = ResourcePermissionConfig>(
-  resourceConfig: C,
-  operation: keyof C,
+export function createResourceHandler<T = any>(
+  requiredPermission: string,
   handler: (resourceId: number, request: NextRequest, checker: PermissionChecker) => Promise<T>
 ) {
-  return handleProtectedRoute(async (request: NextRequest, { auth }) => {
+  return protectRoute(async (request: NextRequest, { user }) => {
     // Extract ID from path
     const { id: resourceId, error } = extractIdFromPath(request);
     if (error) return error;
 
     // Create permission checker
-    const checker = new PermissionChecker(auth);
-    
-    // Validate access
-    const accessResult = validateResourceAccess(checker, resourceConfig, operation, resourceId);
-    if (!accessResult.allowed) {
-      return BaseRoute.errorResponse(accessResult.reason || 'Access denied', 403);
+    const checker = new PermissionChecker(user as any);
+
+    // Check permission
+    if (!checker.hasPermission(requiredPermission)) {
+      return BaseRoute.errorResponse(`Missing ${requiredPermission} permission`, 403);
     }
 
     try {
       // Execute the actual business logic
       const result = await handler(resourceId, request, checker);
-      return handleApiResponse(result, auth.user?.email);
+      return handleApiResponse(result, user?.email);
     } catch (error) {
-      console.error(`Error in ${String(operation)} operation:`, error);
+      console.error(`Error in resource operation:`, error);
       return BaseRoute.errorResponse(
         error instanceof Error ? error.message : 'Internal server error',
         500
@@ -60,39 +55,27 @@ export function createResourceHandler<T = any, C extends ResourcePermissionConfi
 }
 
 /**
- * Create a user resource handler with permission checking (backward compatibility)
+ * Create a simple list handler with permission checking
  */
-export function createUserResourceHandler<T = any>(
-  operation: keyof typeof USER_PERMISSIONS,
-  handler: (userId: number, request: NextRequest, checker: PermissionChecker) => Promise<T>
-) {
-  return createResourceHandler(USER_PERMISSIONS, operation, handler);
-}
-
-/**
- * Create a list resource handler with permission checking for any resource type
- */
-export function createListResourceHandler<T = any, C extends ResourcePermissionConfig = ResourcePermissionConfig>(
-  resourceConfig: C,
-  operation: keyof C,
+export function createListHandler<T = any>(
+  requiredPermission: string,
   handler: (request: NextRequest, checker: PermissionChecker) => Promise<T>
 ) {
-  return handleProtectedRoute(async (request: NextRequest, { auth }) => {
+  return protectRoute(async (request: NextRequest, { user }) => {
     // Create permission checker
-    const checker = new PermissionChecker(auth);
-    
-    // Validate access (no target resource ID needed for list operations)
-    const accessResult = validateResourceAccess(checker, resourceConfig, operation);
-    if (!accessResult.allowed) {
-      return BaseRoute.errorResponse(accessResult.reason || 'Access denied', 403);
+    const checker = new PermissionChecker(user as any);
+
+    // Check permission
+    if (!checker.hasPermission(requiredPermission)) {
+      return BaseRoute.errorResponse(`Missing ${requiredPermission} permission`, 403);
     }
 
     try {
       // Execute the actual business logic
       const result = await handler(request, checker);
-      return handleApiResponse(result, auth.user?.email);
+      return handleApiResponse(result, user?.email);
     } catch (error) {
-      console.error(`Error in ${String(operation)} operation:`, error);
+      console.error(`Error in list operation:`, error);
       return BaseRoute.errorResponse(
         error instanceof Error ? error.message : 'Internal server error',
         500
@@ -104,37 +87,94 @@ export function createListResourceHandler<T = any, C extends ResourcePermissionC
 /**
  * Convenience functions for specific resources
  */
+export function createUserResourceHandler<T = any>(
+  operation: 'READ' | 'UPDATE' | 'DELETE',
+  handler: (userId: number, request: NextRequest, checker: PermissionChecker) => Promise<T>
+) {
+  const permissions = {
+    READ: 'user:read',
+    UPDATE: 'user:update', 
+    DELETE: 'user:delete'
+  };
+  return createResourceHandler(permissions[operation], handler);
+}
+
 export function createUserListHandler<T = any>(
-  operation: keyof typeof USER_PERMISSIONS,
+  operation: 'READ' | 'CREATE',
   handler: (request: NextRequest, checker: PermissionChecker) => Promise<T>
 ) {
-  return createListResourceHandler(USER_PERMISSIONS, operation, handler);
+  const permissions = {
+    READ: 'user:read',
+    CREATE: 'user:create'
+  };
+  return createListHandler(permissions[operation], handler);
 }
 
 export function createRoleResourceHandler<T = any>(
-  operation: keyof typeof ROLE_PERMISSIONS,
+  operation: 'READ' | 'UPDATE' | 'DELETE',
   handler: (roleId: number, request: NextRequest, checker: PermissionChecker) => Promise<T>
 ) {
-  return createResourceHandler(ROLE_PERMISSIONS, operation, handler);
+  const permissions = {
+    READ: 'role:read',
+    UPDATE: 'role:update',
+    DELETE: 'role:delete'
+  };
+  return createResourceHandler(permissions[operation], handler);
 }
 
 export function createRoleListHandler<T = any>(
-  operation: keyof typeof ROLE_PERMISSIONS,
+  operation: 'READ' | 'CREATE',
   handler: (request: NextRequest, checker: PermissionChecker) => Promise<T>
 ) {
-  return createListResourceHandler(ROLE_PERMISSIONS, operation, handler);
+  const permissions = {
+    READ: 'role:read',
+    CREATE: 'role:create'
+  };
+  return createListHandler(permissions[operation], handler);
 }
 
 export function createPermissionResourceHandler<T = any>(
-  operation: keyof typeof PERMISSION_PERMISSIONS,
+  operation: 'READ' | 'UPDATE' | 'DELETE',
   handler: (permissionId: number, request: NextRequest, checker: PermissionChecker) => Promise<T>
 ) {
-  return createResourceHandler(PERMISSION_PERMISSIONS, operation, handler);
+  const permissions = {
+    READ: 'permission:read',
+    UPDATE: 'permission:update',
+    DELETE: 'permission:delete'
+  };
+  return createResourceHandler(permissions[operation], handler);
 }
 
 export function createPermissionListHandler<T = any>(
-  operation: keyof typeof PERMISSION_PERMISSIONS,
+  operation: 'READ' | 'CREATE',
   handler: (request: NextRequest, checker: PermissionChecker) => Promise<T>
 ) {
-  return createListResourceHandler(PERMISSION_PERMISSIONS, operation, handler);
+  const permissions = {
+    READ: 'permission:read',
+    CREATE: 'permission:create'
+  };
+  return createListHandler(permissions[operation], handler);
+}
+
+export function createContactPersonResourceHandler<T = any>(
+  operation: 'READ' | 'UPDATE' | 'DELETE',
+  handler: (contactId: number, request: NextRequest, checker: PermissionChecker) => Promise<T>
+) {
+  const permissions = {
+    READ: 'contact-person:read',
+    UPDATE: 'contact-person:update',
+    DELETE: 'contact-person:delete'
+  };
+  return createResourceHandler(permissions[operation], handler);
+}
+
+export function createContactPersonListHandler<T = any>(
+  operation: 'READ' | 'CREATE',
+  handler: (request: NextRequest, checker: PermissionChecker) => Promise<T>
+) {
+  const permissions = {
+    READ: 'contact-person:read',
+    CREATE: 'contact-person:create'
+  };
+  return createListHandler(permissions[operation], handler);
 }

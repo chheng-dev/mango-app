@@ -1,29 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AuthMiddleware } from '@/lib/middleware/AuthMiddleware';
-import { AuthContext } from '@/lib/types/auth';
-import { ApiResponse } from '@/types/api';
-
-/**
- * Route authentication options
- */
-export interface RouteAuthOptions {
-  requireAuth?: boolean;
-  requiredPermissions?: string[];
-  requiredRoles?: string[];
-  requireAllPermissions?: boolean;
-  requireAllRoles?: boolean;
-  allowSelf?: boolean;
-}
-
-/**
- * Authentication result interface
- */
-export interface AuthResult {
-  success: boolean;
-  auth?: AuthContext;
-  error?: any;
-  status?: number;
-}
 
 /**
  * Standard HTTP status codes for consistent API responses
@@ -41,82 +16,10 @@ export const HTTP_STATUS = {
 } as const;
 
 /**
- * Base route handler focused on authentication and authorization
+ * Clean BaseRoute class - focused on utilities, not authentication
+ * Authentication is handled by src/lib/auth/unified.ts
  */
 export class BaseRoute {
-
-  /**
-   * Main authentication and authorization method
-   * Returns authenticated context or error response
-   */
-  static async authenticate(
-    request: NextRequest,
-    authOptions: RouteAuthOptions = { requireAuth: true }
-  ): Promise<AuthResult> {
-    try {
-      // Skip authentication if not required
-      if (!authOptions.requireAuth) {
-        return { success: true };
-      }
-
-      // Authenticate user
-      const authResult = await AuthMiddleware.authenticate(request);
-      if (!authResult.authenticated || !authResult.context) {
-        return {
-          success: false,
-          error: authResult.error || { success: false, error: 'Authentication required' },
-          status: HTTP_STATUS.UNAUTHORIZED
-        };
-      }
-
-      const auth = authResult.context;
-
-      // Check required permissions
-      if (authOptions.requiredPermissions?.length) {
-        const permissionCheck = AuthMiddleware.checkPermissions(
-          auth,
-          authOptions.requiredPermissions,
-          authOptions.requireAllPermissions
-        );
-
-        if (!permissionCheck.authorized) {
-          return {
-            success: false,
-            error: permissionCheck.error || { success: false, error: 'Insufficient permissions' },
-            status: HTTP_STATUS.FORBIDDEN
-          };
-        }
-      }
-
-      // Check required roles
-      if (authOptions.requiredRoles?.length) {
-        const roleCheck = AuthMiddleware.checkRoles(
-          auth,
-          authOptions.requiredRoles,
-          authOptions.requireAllRoles
-        );
-
-        if (!roleCheck.authorized) {
-          return {
-            success: false,
-            error: roleCheck.error || { success: false, error: 'Insufficient roles' },
-            status: HTTP_STATUS.FORBIDDEN
-          };
-        }
-      }
-
-      return { success: true, auth };
-    } catch (error) {
-      console.error('Authentication error:', error);
-      return {
-        success: false,
-        error: { success: false, error: 'Authentication failed' },
-        status: HTTP_STATUS.INTERNAL_SERVER_ERROR
-      };
-    }
-  }
-
-
 
   /**
    * Create error response
@@ -342,133 +245,8 @@ export function withErrorHandling(
 }
 
 /**
- * Create a protected route handler compatible with Next.js 15
+ * Parse request body from various content types
  */
-export function createProtectedRoute(
-  handler: (
-    request: NextRequest,
-    context: { 
-      auth: AuthContext;
-      user: AuthContext['user'];
-      params: any;
-    }
-  ) => Promise<NextResponse>,
-  options: {
-    requirePermission?: { action: string; resource: string };
-    requiredPermissions?: string[];
-    requiredRoles?: string[];
-    requireAllPermissions?: boolean;
-    requireAllRoles?: boolean;
-  } = {}
-) {
-  return async (
-    request: NextRequest, 
-    context: { params: Promise<any> }
-  ): Promise<NextResponse> => {
-    try {
-      // Build auth options
-      const authOptions: RouteAuthOptions = {
-        requireAuth: true,
-        requiredPermissions: options.requiredPermissions || 
-          (options.requirePermission ? [`${options.requirePermission.resource}:${options.requirePermission.action}`] : undefined),
-        requiredRoles: options.requiredRoles,
-        requireAllPermissions: options.requireAllPermissions,
-        requireAllRoles: options.requireAllRoles
-      };
-
-      // Authenticate
-      const authResult = await BaseRoute.authenticate(request, authOptions);
-      
-      if (!authResult.success) {
-        return NextResponse.json(authResult.error, { status: authResult.status });
-      }
-
-      // Resolve params if they're a Promise (Next.js 15)
-      const params = await context.params;
-
-      // Call handler with authenticated context
-      return await handler(request, { 
-        auth: authResult.auth!, 
-        user: authResult.auth!.user,
-        params 
-      });
-
-    } catch (error) {
-      console.error('Protected route error:', error);
-      
-      // Check if it's a database error
-      if (error && (
-        (typeof error === 'object' && 'message' in error) ||
-        (typeof error === 'string' && error.includes('Failed query:'))
-      )) {
-        return BaseRoute.databaseErrorResponse(error);
-      }
-      
-      return BaseRoute.internalServerError('Request failed');
-    }
-  };
-}
-
-/**
- * Legacy handleProtectedRoute for routes without params
- */
-export const handleProtectedRoute = (
-  handler: (
-    request: NextRequest, 
-    context: { 
-      auth: AuthContext;
-      user: AuthContext['user'];
-    }
-  ) => Promise<NextResponse>,
-  options: {
-    requirePermission?: { action: string; resource: string };
-    requiredPermissions?: string[];
-    requiredRoles?: string[];
-    requireAllPermissions?: boolean;
-    requireAllRoles?: boolean;
-  } = {}
-) => {
-  return async (request: NextRequest) => {
-    try {
-      // Build auth options
-      const authOptions: RouteAuthOptions = {
-        requireAuth: true,
-        requiredPermissions: options.requiredPermissions || 
-          (options.requirePermission ? [`${options.requirePermission.resource}:${options.requirePermission.action}`] : undefined),
-        requiredRoles: options.requiredRoles,
-        requireAllPermissions: options.requireAllPermissions,
-        requireAllRoles: options.requireAllRoles
-      };
-
-      // Authenticate
-      const authResult = await BaseRoute.authenticate(request, authOptions);
-      
-      if (!authResult.success) {
-        return NextResponse.json(authResult.error, { status: authResult.status });
-      }
-
-      // Call handler with authenticated context
-      return await handler(request, { 
-        auth: authResult.auth!, 
-        user: authResult.auth!.user
-      });
-
-    } catch (error) {
-      console.error('Protected route error:', error);
-      
-      // Check if it's a database error
-      if (error && (
-        (typeof error === 'object' && 'message' in error) ||
-        (typeof error === 'string' && error.includes('Failed query:'))
-      )) {
-        return BaseRoute.databaseErrorResponse(error);
-      }
-      
-      return BaseRoute.internalServerError('Request failed');
-    }
-  };
-};
-
 export async function parseRequestBody(req: NextRequest): Promise<any> {
   const contentType = (req.headers.get('content-type') || '').toLowerCase();
 
@@ -520,7 +298,6 @@ export async function parseRequestBody(req: NextRequest): Promise<any> {
     } catch { return {}; }
   }
 }
-
 
 /**
  * Handle API response consistently
