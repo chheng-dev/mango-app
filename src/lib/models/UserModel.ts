@@ -3,9 +3,10 @@ import { userRoles } from '../db/schemas/user_roles';
 import { roles } from '../db/schemas/roles';
 import { permissions } from '../db/schemas/permissions';
 import { rolePermissions } from '../db/schemas/role_permission';
-import { eq, and, ne, or, isNull, gt } from 'drizzle-orm';
+import { eq, and, ne, or, isNull, gt, sql, desc } from 'drizzle-orm';
 import { db } from '../db';
 import { BaseModel, ModelResponse } from './BaseModel';
+import { User } from '@/types/rbac';
 
 export type UserSelect = typeof users.$inferSelect;
 export type UserInsert = typeof users.$inferInsert;
@@ -28,11 +29,11 @@ export interface UserWithRoles extends UserSelect {
 export class UserModel extends BaseModel<UserSelect, UserInsert> {
   protected tableName = 'users';
   protected table = users;
-  
+
   constructor() {
     super(
       [users.name, users.email, users.code],
-      ['name', 'email', 'code'] 
+      ['name', 'email', 'code']
     );
   }
 
@@ -66,13 +67,12 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
         };
       }
 
-      // If requester is NOT super-admin, hide users with super-admin role
       const superAdminRoleResult = await db
         .select({ id: roles.id })
         .from(roles)
         .where(eq(roles.slug, 'super-admin'))
         .limit(1);
-      
+
       if (superAdminRoleResult.length === 0) {
         // No super-admin role exists, return all users
         const result = await db
@@ -113,7 +113,7 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
             eq(userRoles.isActive, true)
           )
         );
-      
+
       const superAdminUserIds = superAdminUsers.map((u) => u.userId);
 
       if (superAdminUserIds.length === 0) {
@@ -176,7 +176,7 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
         data: result as any,
         message: 'Fetched user list successfully'
       };
-    } catch (error) { 
+    } catch (error) {
       console.error('UserModel list error:', error);
       return {
         success: false,
@@ -184,7 +184,7 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
       };
     }
   }
-  
+
   async findByEmail(email: string): Promise<ModelResponse<UserSelect>> {
     return this.findByField('email', email);
   }
@@ -212,7 +212,7 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
         if (existing.length > 0) {
           await db
             .update(userRoles)
-            .set({ isActive: true})
+            .set({ isActive: true })
             .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)));
         } else {
           await db
@@ -375,6 +375,28 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
     return rows.map((row) => row.slug);
   }
 
+  async getUserRoleIds(userId: number): Promise<number[]> {
+    const now = new Date();
+
+    const rows = await db
+      .select({
+        roleId: roles.id,
+      })
+      .from(roles)
+      .innerJoin(userRoles, eq(userRoles.roleId, roles.id))
+      .where(
+        and(
+          eq(userRoles.userId, userId),
+          eq(userRoles.isActive, true),
+          eq(roles.isActive, true),
+          // Don't filter super-admin here - user should see their own role
+          or(isNull(userRoles.expiresAt), gt(userRoles.expiresAt, now))
+        )
+      );
+
+    return rows.map((row) => row.roleId);
+  }
+
   async emailExists(email: string, excludeId?: number): Promise<boolean> {
     try {
       const conditions = [eq(users.email, email.toLowerCase())];
@@ -387,7 +409,7 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
         .from(users)
         .where(conditions.length > 1 ? and(...conditions) : conditions[0])
         .limit(1);
-      
+
       return result.length > 0;
     } catch (error) {
       console.error('UserModel emailExists error:', error);
@@ -407,7 +429,7 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
         .from(users)
         .where(conditions.length > 1 ? and(...conditions) : conditions[0])
         .limit(1);
-      
+
       return result.length > 0;
     } catch (error) {
       console.error('UserModel codeExists error:', error);
@@ -456,11 +478,11 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
       }
 
       try {
-        const userWithRolesResult = await this.getUserWithRoles(userId);
+        const userWithRolesResult = await this.getUserWithRoles(userId.toString());
         if (userWithRolesResult.success) {
           return {
             success: true,
-            data: userWithRolesResult.data as UserSelect,
+            data: result.data!, // Use the basic user data
             message: 'Fetched current user with roles'
           };
         } else {
@@ -469,7 +491,7 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
             data: result.data!,
             message: 'Fetched current user without roles'
           };
-        } 
+        }
       } catch (roleError) {
         console.error('Error fetching user roles:', roleError);
         return {
@@ -487,8 +509,73 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
     }
   }
 
-  async getUserWithRoles(userId: number): Promise<ModelResponse<UserWithRoles>> {
-    return this.findWithRoles(userId);
+  async getUserWithRoles(userId: string): Promise<ModelResponse<any>> {
+    try {
+      const result = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          role: roles.name,
+          permissions: sql`
+            COALESCE(
+              JSON_AGG(
+                JSON_BUILD_OBJECT(
+                  'id', permissions.id,
+                  'name', permissions.name,
+                  'description', permissions.description,
+                  'created_at', permissions.created_at,
+                  'updated_at', permissions.updated_at
+                )
+              ) FILTER (WHERE permissions.id IS NOT NULL),
+              '[]'
+            )::json
+          `.as("permissions")
+        })
+        .from(users)
+        .leftJoin(userRoles, and(eq(userRoles.userId, users.id), eq(userRoles.isActive, true)))
+        .leftJoin(roles, and(eq(userRoles.roleId, roles.id), eq(roles.isActive, true)))
+        .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
+        .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+        .where(eq(users.id, Number(userId)))
+        .groupBy(users.id, users.email, users.name, roles.name)
+        .limit(1);
+
+      if (!result || result.length === 0) {
+        return {
+          success: false,
+          error: 'User not found'
+        };
+      }
+
+      const user = result[0];
+
+      return {
+        success: true,
+        data: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: {
+            id: roles.id,
+            name: roles.name,
+            description: roles.description,
+            isSystemRole: roles.isSystemRole,
+            permissions: user.permissions,
+            createdAt: roles.createdAt,
+            updatedAt: roles.updatedAt
+          }
+        },
+        message: 'User fetched with roles successfully'
+      };
+
+    } catch (error) {
+      console.error('UserModel getUserWithRoles error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch user with roles'
+      };
+    }
   }
 
   async isSuperAdmin(userId: number): Promise<boolean> {
@@ -523,33 +610,93 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
     }
   }
 
-  async getUserPermissions(userId: number): Promise<string[]> {
-  const now = new Date();
+  /**
+   * Get detailed user permissions with IDs, slugs, and names
+   * Recommended for client-side permission checking (use IDs)
+   */
+  async getUserPermissionsDetailed(userId: number): Promise<Array<{
+    id: number;
+    name: string;
+    resource: string;
+    action: string;
+  }>> {
+    // Check if user is super-admin first
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+    if (isSuperAdmin) {
+      // Super-admin gets ALL permissions automatically
+      const allPermissions = await db
+        .select({
+          id: permissions.id,
+          name: permissions.name,
+          resource: permissions.resource,
+          action: permissions.action,
+        })
+        .from(permissions);
 
-  const rows = await db
-    .select({
-      slug: permissions.slug,
-    })
-    .from(permissions)
-    .innerJoin(rolePermissions, eq(rolePermissions.permissionId, permissions.id))
-    .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
-    .innerJoin(userRoles, eq(userRoles.roleId, roles.id))
-    .where(
-      and(
-        eq(userRoles.userId, userId),
-        eq(userRoles.isActive, true),
-        eq(roles.isActive, true),
-        or(isNull(userRoles.expiresAt), gt(userRoles.expiresAt, now))
-      )
-    );
+      return allPermissions;
+    }
 
-  const uniq = Array.from(new Set(rows.map((row) => row.slug)));
-  return uniq;
+    // For regular users, get permissions from their roles
+    const now = new Date();
+
+    const rows = await db
+      .select({
+        id: permissions.id,
+        name: permissions.name,
+        resource: permissions.resource,
+        action: permissions.action,
+      })
+      .from(permissions)
+      .innerJoin(rolePermissions, eq(rolePermissions.permissionId, permissions.id))
+      .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
+      .innerJoin(userRoles, eq(userRoles.roleId, roles.id))
+      .where(
+        and(
+          eq(userRoles.userId, userId),
+          eq(userRoles.isActive, true),
+          eq(roles.isActive, true),
+          or(isNull(userRoles.expiresAt), gt(userRoles.expiresAt, now))
+        )
+      );
+
+    // Remove duplicates based on permission ID
+    const uniqueMap = new Map();
+    rows.forEach(row => {
+      if (!uniqueMap.has(row.id)) {
+        uniqueMap.set(row.id, row);
+      }
+    });
+
+    return Array.from(uniqueMap.values());
   }
 
-  async hasPermission(userId: number, permissionSlug: string): Promise<boolean> {
+  async getUserPermissions(userId: number): Promise<string[]> {
+    const detailed = await this.getUserPermissionsDetailed(userId);
+    return detailed.map(p => `${p.resource}:${p.action}`);
+  }
+
+  async getUserPermissionsGrouped(userId: number): Promise<Record<string, string[]>> {
+    const detailed = await this.getUserPermissionsDetailed(userId);
+    const grouped: Record<string, string[]> = {};
+
+    detailed.forEach(p => {
+      if (!grouped[p.resource]) {
+        grouped[p.resource] = [];
+      }
+      grouped[p.resource].push(p.action);
+    });
+
+    return grouped;
+  }
+
+  async hasPermission(userId: number, permissionName: string): Promise<boolean> {
     const permissions = await this.getUserPermissions(userId);
-    return permissions.includes(permissionSlug);
+    return permissions.includes(permissionName);
+  }
+
+  async hasPermissionById(userId: number, permissionId: number): Promise<boolean> {
+    const permissions = await this.getUserPermissionsDetailed(userId);
+    return permissions.some(p => p.id === permissionId);
   }
 
   async hasRole(userId: number, roleSlug: string): Promise<boolean> {
@@ -558,3 +705,4 @@ export class UserModel extends BaseModel<UserSelect, UserInsert> {
   }
 }
 
+export const userModel = new UserModel();

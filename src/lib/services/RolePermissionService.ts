@@ -20,7 +20,7 @@ export class RolePermissionService {
         .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
         .where(and(
           eq(userRoles.userId, userId),
-          eq(permissions.slug, permissionSlug),
+          eq(permissions.name, permissionSlug),
           eq(userRoles.isActive, true),
           eq(roles.isActive, true)
         ))

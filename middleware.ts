@@ -1,116 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
-import { JWTService } from "@/lib/auth/jwt";
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+export default async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  // Check for custom auth token instead of NextAuth
+  const authToken = req.cookies.get('auth-token')?.value;
 
-  const publicRoutes = [
-    "/api/auth/login",
-    "/api/auth/register",
-    "/api/auth/forgot-password",
-    "/api/auth/reset-password",
-    "/api/health",
-    "/register",
-    "/forgot-password",
-    "/reset-password",
-    "/",
-    "/about",
-    "/contact"
-  ];
+  let pathWithoutLocale = pathname;
+  let currentLocale = "en";
+  let hasLocaleInPath = false;
 
-  const authRoutes = [
-    "/login",
-    "/register"
-  ];
-
-  const protectedPageRoutes = [
-    "/admin",
-    "/profile",
-    "/settings"
-  ];
-
-  const protectedApiRoutes = [
-    "/api/auth/me",
-    "/api/auth/logout",
-    "/api/profile",
-    "/api/users"
-  ];
-
-  // Check if it's a public route
-  const isPublicRoute = publicRoutes.includes(pathname);
-  
-  // Check if it's an auth route (login, register, etc.)
-  const isAuthRoute = authRoutes.includes(pathname);
-  
-  // Check if it's a protected page
-  const isProtectedPage = protectedPageRoutes.some(route => {
-    if (route.endsWith("/*")) {
-      return pathname.startsWith(route.slice(0, -2));
+  const locales = ["en", "km"];
+  for (const locale of locales) {
+    if (pathname.startsWith(`/${locale}/`)) {
+      pathWithoutLocale = pathname.substring(`/${locale}`.length);
+      currentLocale = locale;
+      hasLocaleInPath = true;
+      break;
+    } else if (pathname === `/${locale}`) {
+      pathWithoutLocale = "/";
+      currentLocale = locale;
+      hasLocaleInPath = true;
+      break;
     }
-    return pathname.startsWith(route);
-  });
+  }
 
-  // Check if it's a protected API route
-  const isProtectedApi = protectedApiRoutes.some(route => 
-    pathname.startsWith(route)
+  const protectedPaths = ["/dashboard", "/profile", "/warehouse"];
+  const isProtectedPath = protectedPaths.some((path) =>
+    pathWithoutLocale.startsWith(path),
   );
 
-  // Allow public routes
-  if (isPublicRoute) {
-    return NextResponse.next();
-  }
+  // Add admin routes to protected paths
+  const isAdminPath = pathWithoutLocale.startsWith("/admin");
+  const isCompaniesPath = pathWithoutLocale.startsWith("/companies");
+  const isCompaniesLoginPath = pathWithoutLocale === "/companies/login";
 
-  // Get token from cookie or header
-  const token = request.cookies.get('auth-token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '');
+  const authPaths = ["/login", "/register"];
+  const isAuthPath = authPaths.some((path) => pathWithoutLocale === path);
 
-  // Function to validate token
-  const isValidToken = (token: string): boolean => {
-    try {
-      const jwtService = JWTService.getInstance();
-      jwtService.verifyAccessToken(token);
-      return true;
-    } catch (error) {
-      return false;
-    }
-  };
-
-  // Check if user is authenticated (has valid token)
-  const isAuthenticated = token ? isValidToken(token) : false;
-
-  // Redirect authenticated users away from auth pages (login, register)
-  if (isAuthRoute && isAuthenticated) {
-    return NextResponse.redirect(new URL('/admin', request.url));
-  }
-
-  // Handle protected pages (redirect to login if not authenticated)
-  if (isProtectedPage && !isAuthenticated) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Handle protected API routes (return 401 if not authenticated)
-  if (isProtectedApi && !isAuthenticated) {
-    return NextResponse.json(
-      { success: false, error: 'Authentication required' },
-      { status: 401 }
+  if (!hasLocaleInPath && (isProtectedPath || isAuthPath || isCompaniesPath || isAdminPath)) {
+    return NextResponse.redirect(
+      new URL(`/${currentLocale}${pathname}`, req.url),
     );
   }
 
-  // Continue if authenticated or unprotected route
+  // Redirect authenticated users away from auth pages
+  if (isAuthPath && authToken) {
+    return NextResponse.redirect(
+      new URL(`/${currentLocale}/admin`, req.url),
+    );
+  }
+
+  // Redirect unauthenticated users to login for protected routes
+  if (isProtectedPath || isAdminPath) {
+    if (!authToken) {
+      const loginUrl = new URL(`/${currentLocale}/login`, req.url);
+      loginUrl.searchParams.set("returnUrl", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

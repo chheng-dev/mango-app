@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { handleApiResponse } from '@/lib/utils/BaseRoute';
-import { protectRoute } from '@/lib/auth/unified';
+import { protectRoute } from '@/lib/auth/nextauth-unified';
 import { userController } from '@/lib/controllers/UserController';
 
 export const GET = protectRoute(async (request: NextRequest, { user }) => {

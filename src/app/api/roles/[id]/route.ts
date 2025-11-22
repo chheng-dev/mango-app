@@ -1,11 +1,13 @@
 import { roleController } from '@/lib/controllers/RoleController';
 import { handleApiResponse } from '@/lib/utils/BaseRoute';
-import { protectRoute } from '@/lib/auth/unified';
+import { protectRoute } from '@/lib/auth/nextauth-unified';
 
 export const GET = protectRoute(async (request, { user, params }) => {
   const roleId = parseInt(params.id);
   const result = await roleController.getById(roleId);
   return handleApiResponse(result, user?.email);
+}, {
+  requiredPermissions: ['role:read']
 });
 
 export const PUT = protectRoute(async (request, { user, params }) => {
@@ -25,6 +27,8 @@ export const PUT = protectRoute(async (request, { user, params }) => {
   
   const result = await roleController.update(roleId, data);
   return handleApiResponse(result, user?.email);
+}, {
+  requiredPermissions: ['role:update']
 });
 
 export const DELETE = protectRoute(async (request, { user, params }) => {
@@ -39,4 +43,6 @@ export const DELETE = protectRoute(async (request, { user, params }) => {
   
   const result = await roleController.delete(roleId);
   return handleApiResponse(result, user?.email);
+}, {
+  requiredPermissions: ['role:delete']
 });

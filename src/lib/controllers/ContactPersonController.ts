@@ -7,9 +7,6 @@ export class ContactPersonController extends ModelController<ContactPersonSelect
     super(new ContactPersonModel());
   }
 
-  /**
-   * Get contact person by code
-   */
   async getByCode(cpCode: string): Promise<ApiResponse<ContactPersonSelect>> {
     const result = await this.model.findByCode(cpCode);
     return this.convertResponse<ContactPersonSelect>(result);

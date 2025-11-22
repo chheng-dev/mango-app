@@ -1,0 +1,10 @@
+--- Drizzle safe migration started: 2025-11-22T13:27:52+0700 ---
+INFO: Creating DB backup to ./db_backups/backup-20251122-132752.sql.gz ...
+INFO: Backup completed: ./db_backups/backup-20251122-132752.sql.gz
+INFO: Running drizzle-kit migrate (config: ./drizzle.config.ts)...
+Reading config file '/Users/user/Workspace/next/mango-app/drizzle.config.ts'
+Using 'pg' driver for database querying
+[⣷] applying migrations...[2K[1G[✓] migrations applied successfully!INFO: Migrations applied successfully.
+INFO: Latest applied migrations (from __drizzle_migrations):
+INFO: Could not query __drizzle_migrations table. It may not exist yet or may have a different schema.
+INFO: Migration script finished: 2025-11-22T13:27:55+0700

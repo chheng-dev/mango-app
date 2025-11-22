@@ -1,96 +1,69 @@
-import { protectRoute } from '@/lib/auth/unified';
-import { userController } from '@/lib/controllers/UserController';
-import { handleApiResponse } from '@/lib/utils/BaseRoute';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { userController } from "@/lib/controllers/UserController";
 
-export const GET = protectRoute(async (request: NextRequest, { user }) => {
-  if (!user?.id) {
-    throw new Error('Invalid user session');
-  }
-  
-  // Fetch complete user data including roles and permissions
-  const [userRoles, userPermissions, isSuperAdmin, currentUser] = await Promise.all([
-    userController.getUserRoles(user.id),
-    userController.getUserPermissions(user.id),
-    userController.isSuperAdmin(user.id),
-    userController.getCurrentUser(user.id)
-  ]);
+export const GET = async (request: NextRequest) => {
+  try {
+    // Check for custom auth token (not NextAuth)
+    const authCookie = request.cookies.get('auth-token');
+    const token = authCookie ? authCookie.value : null;
 
-  if (!currentUser.success) {
-    return handleApiResponse(currentUser, user.email);
-  }
+    if (!token) {
+      console.error("Profile API: No auth-token cookie found");
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
 
-  const result = {
-    success: true,
-    data: {
-      ...currentUser.data,
-      roles: userRoles,
-      permissions: userPermissions,
-      isSuperAdmin
-    },
-    message: 'User profile retrieved successfully'
-  };
+    // Verify custom JWT token
+    const { jwtService } = await import('@/lib/auth/jwt');
+    const decoded = jwtService.verifyAccessToken(token);
 
-  return handleApiResponse(result, user.email);
-});
+    if (!decoded || !decoded.userId) {
+      console.error("Profile API: Invalid token");
+      return NextResponse.json(
+        { success: false, error: "Invalid token" },
+        { status: 401 }
+      );
+    }
 
-export const PUT = protectRoute(async (request: NextRequest, { user }) => {
-  if (!user?.id) {
-    throw new Error('Invalid user session');
-  }
+    const userId = decoded.userId;
 
-  const body = await request.json();
+    // Get user data
+    const userResult = await userController.getCurrentUser(userId);
+    if (!userResult.success || !userResult.data) {
+      console.error("Profile API: User not found");
+      return NextResponse.json(
+        { success: false, error: "User not found" },
+        { status: 404 }
+      );
+    }
 
-  const { 
-    id, 
-    email, 
-    passwordHash, 
-    passwordConfirmation, 
-    isActive, 
-    isVerified, 
-    createdAt, 
-    updatedAt, 
-    ...updateData 
-  } = body;
+    const user = userResult.data;
 
-  const allowedFields = {
-    name: body.name,
-    code: body.code,
-    ...updateData
-  };
+    // Get user roles, permissions, and super admin status
+    const [roles, permissions, isSuperAdmin] = await Promise.all([
+      userController.getUserRoles(userId),
+      userController.getUserPermissionsGrouped(userId),
+      userController.isSuperAdmin(userId)
+    ]);
 
-  const cleanedData = Object.fromEntries(
-    Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
-  );
-
-  const result = await userController.update(user.id, cleanedData);
-  return handleApiResponse(result, user.email);
-});
-
-export const DELETE = protectRoute(async (request: NextRequest, { user }) => {
-  if (!user?.id) {
-    throw new Error('Invalid user session');
-  }
-
-  const result = await userController.updateStatus(user.id, false);
-  
-  if (result.success) {
-    const { NextResponse } = await import('next/server');
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
-      data: true,
-      message: 'Account deactivated successfully'
+      data: {
+        id: user.id.toString(),
+        email: user.email,
+        name: user.name,
+        roles,
+        permissions,
+        isSuperAdmin
+      }
     });
-
-    response.cookies.set('auth-token', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 0
-    });
-
-    return response;
+  } catch (error) {
+    console.error("Profile API error:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  return handleApiResponse(result, user.email);
-});
+};

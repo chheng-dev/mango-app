@@ -5,13 +5,14 @@ import { useAuth } from '@/store/authStore';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import Link from 'next/link';
 import { ChevronDown, User, LogOut, Palette, Bell } from 'lucide-react';
+import { useHasPermissions } from '@/hooks/useHasPermissions';
 
 interface UserProfileDropdownProps {
   className?: string;
 }
 
 export function UserProfileDropdown({ className }: UserProfileDropdownProps) {
-  const { user } = useAuth();
+  const { user } = useHasPermissions();
   const { isSuperAdmin } = useUserPermissions();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 

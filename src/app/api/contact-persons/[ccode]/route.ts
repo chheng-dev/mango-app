@@ -1,8 +1,8 @@
-import { protectRoute } from "@/lib/auth/unified";
+import { protectRoute } from "@/lib/auth/nextauth-unified";
 import { contactPersonController } from "@/lib/controllers/ContactPersonController";
 import { handleApiResponse } from "@/lib/utils/BaseRoute";
 
-export const GET = protectRoute(async (request,  context) => {
+export const GET = protectRoute(async (request, context) => {
   const { ccode } = context.params;
   const result = await contactPersonController.getByCode(ccode);
   return handleApiResponse(result, context.user.email);

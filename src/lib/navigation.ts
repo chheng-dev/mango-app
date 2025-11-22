@@ -13,35 +13,30 @@ import {
   UserCheck,
   Users
 } from 'lucide-react';
-import { PERMISSIONS } from './constants/permissions';
 
 export interface NavigationItem {
   name: string;
-  href: string;
+  path: string;
   icon: any;
-  permissions: readonly string[];
   badge?: string;
 }
 
 export const mainNavigation: NavigationItem[] = [
   { 
     name: 'Home', 
-    href: '/admin', 
+    path: '/admin', 
     icon: Home,
-    permissions: []
   },
   { 
     name: 'Orders', 
-    href: '/admin/orders', 
+    path: '/admin/orders', 
     icon: ShoppingBag,
-    permissions: [],
     badge: '2'
   },
   { 
     name: 'Returns', 
-    href: '/admin/returns', 
+    path: '/admin/returns', 
     icon: RotateCcw,
-    permissions: []
   },
 ];
 
@@ -51,27 +46,23 @@ export const mainNavigation: NavigationItem[] = [
 export const productsNavigation: NavigationItem[] = [
   { 
     name: 'Stock', 
-    href: '/admin/products/stock', 
+    path: '/admin/products/stock', 
     icon: Package,
-    permissions: []
   },
   { 
     name: 'Taxonomies', 
-    href: '/admin/products/taxonomies', 
+    path: '/admin/products/taxonomies', 
     icon: Tag,
-    permissions: []
   },
   { 
     name: 'Options', 
-    href: '/admin/products/options', 
+    path: '/admin/products/options', 
     icon: Cog,
-    permissions: []
   },
   { 
     name: 'Properties', 
-    href: '/admin/products/properties', 
+    path: '/admin/products/properties', 
     icon: Settings,
-    permissions: []
   },
 ];
 
@@ -81,27 +72,23 @@ export const productsNavigation: NavigationItem[] = [
 export const businessNavigation: NavigationItem[] = [
   { 
     name: 'Vendors', 
-    href: '/admin/vendors', 
+    path: '/admin/vendors', 
     icon: UserCheck,
-    permissions: []
   },
   { 
     name: 'Customers', 
-    href: '/admin/customers', 
+    path: '/admin/customers', 
     icon: Users,
-    permissions: []
   },
   { 
     name: 'Promotions', 
-    href: '/admin/promotions', 
+    path: '/admin/promotions', 
     icon: Tag,
-    permissions: []
   },
   { 
     name: 'Reports', 
-    href: '/admin/reports', 
+    path: '/admin/reports', 
     icon: TrendingUp,
-    permissions: []
   },
 ];
 
@@ -111,77 +98,72 @@ export const businessNavigation: NavigationItem[] = [
 export const storefrontNavigation: NavigationItem[] = [
   { 
     name: 'Themes', 
-    href: '/admin/storefront/themes',
+    path: '/admin/storefront/themes',
     icon: Palette,
-    permissions: []
   },
   { 
     name: 'Pages', 
-    href: '/admin/storefront/pages', 
+    path: '/admin/storefront/pages', 
     icon: Globe,
-    permissions: []
   },
   { 
     name: 'Posts', 
-    href: '/admin/storefront/posts', 
+    path: '/admin/storefront/posts', 
     icon: Settings,
-    permissions: []
   },
   { 
     name: 'Settings', 
-    href: '/admin/storefront/settings', 
+    path: '/admin/storefront/settings', 
     icon: Cog,
-    permissions: []
   },
 ];
 
 /**
- * Integrations section - collapsible
+ * 
+ *  section - collapsible
  */
 export const integrationsNavigation: NavigationItem[] = [
   { 
     name: 'API Settings', 
-    href: '/admin/integrations/api', 
+    path: '/admin/integrations/api', 
     icon: Database,
-    permissions: []
   },
   { 
     name: 'Webhooks', 
-    href: '/admin/integrations/webhooks', 
+    path: '/admin/integrations/webhooks', 
     icon: Globe,
-    permissions: []
   },
   { 
     name: 'Third Party', 
-    href: '/admin/integrations/third-party', 
+    path: '/admin/integrations/third-party', 
     icon: Cog,
-    permissions: []
   },
 ];
 
 export const userManagementNavigation: NavigationItem[] = [
   { 
     name: 'Users', 
-    href: '/admin/users', 
+    path: '/admin/users', 
     icon: Users,
-    permissions: ['users_read']
   },
   { 
     name: 'Contact Persons', 
-    href: '/admin/contact-persons', 
+    path: '/admin/contact-persons', 
     icon: Users,
-    permissions: [PERMISSIONS.CONTACT_PERSON_READ]
+  },
+  { 
+    name: 'Customers', 
+    path: '/admin/customers', 
+    icon: Users,
   },
   { 
     name: 'Roles', 
-    href: '/admin/roles', 
+    path: '/admin/roles', 
     icon: Tag,
-    permissions: ['roles_read']
   },
   { 
     name: 'Permissions', 
-    href: '/admin/permissions', 
+    path: '/admin/permissions', 
     icon: Cog,
-    permissions: ['permissions_read']
   },
 ];

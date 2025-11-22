@@ -5,7 +5,6 @@ import { rolePermissions } from "./role_permission";
 export const permissions = pgTable("permissions", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 100 }).notNull().unique(),
-  slug: varchar("slug", { length: 100 }).notNull().unique(),
   resource: varchar("resource", { length: 100 }).notNull(),
   action: varchar("action", { length: 100 }).notNull(),
   description: varchar("description", { length: 255 }),

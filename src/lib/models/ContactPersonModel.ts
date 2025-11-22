@@ -23,8 +23,6 @@ export class ContactPersonModel extends BaseModel<ContactPersonSelect, ContactPe
     );
   }
 
-  // ==================== VALIDATION HELPERS ====================
-
   private async validateCustomerExists(cCode: string | null | undefined): Promise<void> {
     if (!cCode) {
       throw new Error('Customer code is required');

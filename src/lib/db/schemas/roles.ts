@@ -9,6 +9,7 @@ export const roles =  pgTable('roles', {
   slug: varchar('slug', { length: 100 }).notNull().unique(),
   description: varchar('description', { length: 255 }),
   isActive: boolean('is_active').default(true),
+  isSystemRole: boolean('is_system_role').default(false),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

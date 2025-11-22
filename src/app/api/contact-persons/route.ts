@@ -1,4 +1,4 @@
-import { protectRoute } from '@/lib/auth/unified';
+import { protectRoute } from '@/lib/auth/nextauth-unified';
 import { contactPersonController } from '@/lib/controllers/ContactPersonController';
 import { handleApiResponse } from '@/lib/utils/BaseRoute';
 

@@ -1,60 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { userController } from '@/lib/controllers/UserController';
-import { BaseRoute } from '@/lib/utils/BaseRoute';
-import { PasswordService } from '@/lib/services/passwordService';
-import { jwtService } from '@/lib/auth/jwt';
+import { AuthController } from "@/lib/controllers/auth-controller";
+import { setRegularUserCookies } from "@/lib/auth/cookie-helpers";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { email, password } = await request.json();
+    const body = await req.json();
+    const { email, password } = body;
 
     if (!email || !password) {
-      return BaseRoute.errorResponse('Email and password are required', 400);
+      return NextResponse.json(
+        { error: "Email and password are required" },
+        { status: 400 },
+      );
     }
 
-    const userResult = await userController.getByEmail(email);
-    if (!userResult.success || !userResult.data) {
-      return BaseRoute.errorResponse('Invalid credentials', 401);
-    }
+    console.log('Login attempt for:', email);
 
-    const user = userResult.data;
+    const loginResult = await AuthController.login(email, password);
     
-    if (!user.isActive || !user.passwordHash) {
-      return BaseRoute.errorResponse('Invalid credentials', 401);
+    if (!loginResult) {
+      console.log('Login failed for:', email);
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Verify password
-    const isValidPassword = await PasswordService.compare(password, user.passwordHash);
-    if (!isValidPassword) {
-      return BaseRoute.errorResponse('Invalid credentials', 401);
-    }
 
-    // Generate token
-    const token = jwtService.generateAccessToken({
-      userId: user.id,
-      email: user.email,
-      code: user.code,
-      isVerified: user.isVerified!
-    });
-
-    const result = {
+    const response = NextResponse.json({
       success: true,
-      data: { user, token },
-      message: 'Login successful'
-    };
-
-    const response = NextResponse.json(result, { status: 200 });
-    response.cookies.set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7
+      message: loginResult.message,
+      user: loginResult.user,
+      token: loginResult.accessToken // For backward compatibility
     });
+
+    setRegularUserCookies(
+      response,
+      loginResult.accessToken,
+      loginResult.refreshToken,
+    );
+
+    console.log('Login API: Response cookies to be set:', response.cookies.getAll());
     
     return response;
 
   } catch (error) {
-    console.error('Login API error:', error);
-    return BaseRoute.databaseErrorResponse(error, 'Login failed');
+    console.error("Login error:", error);
+    return NextResponse.json(
+      { error: "An error occurred during login" },
+      { status: 500 },
+    );
   }
 }

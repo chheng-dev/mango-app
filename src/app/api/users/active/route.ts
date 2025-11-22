@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
 import { userController } from '@/lib/controllers/UserController';
 import { handleApiResponse } from '@/lib/utils/BaseRoute';
-import { PERMISSIONS } from '@/lib/constants/permissions';
-import { protectRoute } from '@/lib/auth/unified';
+import { protectRoute } from '@/lib/auth/nextauth-unified';
 
 export const GET = protectRoute(async (request: NextRequest, { user }) => {
   const { searchParams } = new URL(request.url);
@@ -22,4 +21,6 @@ export const GET = protectRoute(async (request: NextRequest, { user }) => {
   });
 
   return handleApiResponse(result, user?.email);
+}, {
+  requiredPermissions: ['user:read']
 });

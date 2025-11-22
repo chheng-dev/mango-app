@@ -5,6 +5,11 @@ import * as schema from './schema';
 // Create a connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // Explicitly set the database
+  database: 'mango_app',
+  host: 'localhost',
+  port: 5432,
+  user: 'user'
 });
 
 // Create the drizzle instance

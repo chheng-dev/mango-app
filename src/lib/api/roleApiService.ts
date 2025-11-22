@@ -1,71 +1,93 @@
-import { ApiResponse } from "@/types/api";
-import { BaseApiService } from "./baseApiService";
-import { CreateRoleData, Role, UpdateRoleData } from "../types/role";
+import { CreateRoleInput, UpdateRoleInput } from "@/types/rbac";
+import { Role, CreateRoleData, UpdateRoleData } from "../types/role";
 
-class RoleApiService extends BaseApiService {
-  constructor() {
-    super('/api/rbac/roles');
-  }
-
-  getAllRoles(options: {
-    page?: number;
-    limit?: number;
-    query?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-    includePermissions?: boolean;
-  } = {}): Promise<ApiResponse<Role[]>> {
+export class RoleApiService {
+  static async getAllRoles(filters?: any): Promise<Role[]> {
     const params = new URLSearchParams();
-    if (options.page) params.set('page', options.page.toString());  
-    if (options.limit) params.set('limit', options.limit.toString());
-    if (options.query) params.set('query', options.query);
-    if (options.sortBy) params.set('sortBy', options.sortBy);
-    if (options.sortOrder) params.set('sortOrder', options.sortOrder);
-    if (options.includePermissions) params.set('includePermissions', 'true');
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          params.append(key, String(value));
+        }
+      });
+    }
     
-    return this.get<Role[]>('', params);
+    const url = params.toString() ? `/api/roles?${params}` : '/api/roles';
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to fetch roles');
+    }
+    return response.json();
   }
 
-  getRoleById(id: number): Promise<ApiResponse<Role>> {
-    return this.get<Role>(`/${id}`);
+  static async getRoles(): Promise<Role[]> {
+    return this.getAllRoles();
   }
 
-  createRole(data: CreateRoleData): Promise<ApiResponse<Role>> {
-    return this.post<Role>('', data);
+  static async getRoleById(id: string | number): Promise<Role> {
+    const response = await fetch(`/api/roles/${id}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch role');
+    }
+    return response.json();
   }
 
-  updateRole(id: number, data: UpdateRoleData): Promise<ApiResponse<Role>> {
-    return this.put<Role>(`/${id}`, data);
+  static async createRole(data: CreateRoleInput | CreateRoleData): Promise<Role> {
+    const response = await fetch('/api/roles', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create role');
+    }
+    return response.json();
   }
 
-  deleteRole(id: number): Promise<ApiResponse<boolean>> {
-    return this.delete<boolean>(`/${id}`);
+  static async updateRole(id: string | number, data: UpdateRoleInput | UpdateRoleData): Promise<Role> {
+    const response = await fetch(`/api/roles/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update role');
+    }   
+    return response.json();
   }
 
-  assignPermissions(roleId: number, permissionIds: number[]): Promise<ApiResponse<boolean>> {
-    return this.post<boolean>(`/${roleId}/permissions`, { permissionIds });
+  static async deleteRole(id: string | number): Promise<void> {
+    const response = await fetch(`/api/roles/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete role');
+    }   
+    return;
   }
 
-  removePermissions(roleId: number, permissionIds: number[]): Promise<ApiResponse<boolean>> {
-    return this.delete<boolean>(`/${roleId}/permissions`, { permissionIds } as any);
+  static async countPermissions(roleId: number): Promise<number> {
+    const response = await fetch(`/api/roles/${roleId}/permissions/count`);
+    if (!response.ok) {
+      throw new Error('Failed to count permissions');
+    }
+    const result = await response.json();
+    return result.count || 0;
   }
 
-  getRoleWithPermissions(roleId: number): Promise<ApiResponse<Role>> {
-    return this.get<Role>(`/${roleId}/permissions`);
-  }
-
-  updateRolePermissions(roleId: number, permissionIds: number[]): Promise<ApiResponse<boolean>> {
-    return this.put<boolean>(`/${roleId}/permissions`, { permissionIds });
-  }
-
-  countPermissions(roleId: number): Promise<ApiResponse<number>> {
-    return this.get<number>(`/${roleId}/permissions/count`);
-  }
-
-  countUsers(roleId: number): Promise<ApiResponse<number>> {
-    return this.get<number>(`/${roleId}/user/count`);
+  static async countUsers(roleId: number): Promise<number> {
+    const response = await fetch(`/api/roles/${roleId}/users/count`);
+    if (!response.ok) {
+      throw new Error('Failed to count users');
+    }
+    const result = await response.json();
+    return result.count || 0;
   }
 }
 
-export const roleApiService = new RoleApiService();
+export const roleApiService = RoleApiService;
 export default roleApiService;

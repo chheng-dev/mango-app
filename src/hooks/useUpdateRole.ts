@@ -16,7 +16,7 @@ interface UpdateRoleResponse {
 }
 
 async function updateRole(roleId: string, data: EditRoleData): Promise<UpdateRoleResponse> {
-  const response = await fetch(`/api/rbac/roles/${roleId}`, {
+  const response = await fetch(`/api/roles/${roleId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

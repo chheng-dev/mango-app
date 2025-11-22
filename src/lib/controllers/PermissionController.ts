@@ -1,8 +1,7 @@
 import { ApiResponse } from '@/types/api';
-import { PermissionModel, PermissionSelect, PermissionInsert } from '../models/PermissionModel';
-import { ModelController } from './ModelController';
-import { generatePermissionSlug, isValidSlug, generatePermissionDescription } from '../types/permission';
+import { PermissionInsert, PermissionModel, PermissionSelect } from '../models/PermissionModel';
 import { createPermissionSchema, updatePermissionSchema } from '../validations/permission-schemas';
+import { ModelController } from './ModelController';
 
 export class PermissionController extends ModelController<PermissionSelect, PermissionInsert, PermissionModel> {
   
@@ -17,12 +16,7 @@ export class PermissionController extends ModelController<PermissionSelect, Perm
 
   async getPermissionsByResource(resource: string): Promise<ApiResponse<PermissionSelect[]>> {
     const result = await this.model.getPermissionsByResource(resource);
-    return this.convertResponse<PermissionSelect[]>(result);
-  }
-
-  async getPermissionsGroupedByResource(): Promise<ApiResponse<Record<string, PermissionSelect[]>>> {
-    const result = await this.model.getPermissionsGroupedByResource();
-    return this.convertResponse<Record<string, PermissionSelect[]>>(result);
+    return this.convertResponse<PermissionSelect[]>(result as any);
   }
 
   protected validateCreateData(data: PermissionInsert): ApiResponse<any> | null {
@@ -47,31 +41,10 @@ export class PermissionController extends ModelController<PermissionSelect, Perm
     return null;
   }
 
-  protected beforeCreate(data: PermissionInsert): PermissionInsert {
-    return {
-      ...data,
-      slug: data.slug || generatePermissionSlug(data.resource, data.action),
-      description: data.description || generatePermissionDescription(data.resource, data.action)
-    };
-  }
-
-  protected beforeUpdate(id: number, data: Partial<PermissionInsert>): Partial<PermissionInsert> {
-    const processedData = { ...data };
-    if ((processedData.resource || processedData.action) && !processedData.slug) {
-      if (processedData.resource && processedData.action) {
-        processedData.slug = generatePermissionSlug(processedData.resource, processedData.action);
-      }
-    }
-    return processedData;
-  }
-
   protected async canDelete(id: number): Promise<{ allowed: boolean; reason?: string }> {
     return { allowed: true };
   }
 
-  // Helper methods moved to centralized helpers in types/permission.ts
-
-  // Override success messages
   protected getCreateSuccessMessage() { return 'Permission created successfully'; }
   protected getUpdateSuccessMessage() { return 'Permission updated successfully'; }
   protected getDeleteSuccessMessage() { return 'Permission deleted successfully'; }

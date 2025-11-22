@@ -37,7 +37,6 @@ export abstract class BaseModel<TSelect, TInsert> {
   protected searchableFields: any[] = [];
   protected requiredFields: string[] = [];
   
-  // Allow customization of primary key and timestamp fields
   protected primaryKey: string = 'id';
   protected createdAtField: string = 'createdAt';
   protected updatedAtField: string = 'updatedAt';
@@ -58,13 +57,8 @@ export abstract class BaseModel<TSelect, TInsert> {
     if (options?.updatedAtField) this.updatedAtField = options.updatedAtField;
   }
 
-  // ==================== LIFECYCLE HOOKS ====================
-  /**
-   * Hook called before creating a record
-   * Override this in child classes to transform or validate data
-   */
+  
   protected beforeCreate?(data: TInsert): Promise<TInsert> | TInsert;
-
   /**
    * Hook called after creating a record
    * Override this in child classes for post-creation actions

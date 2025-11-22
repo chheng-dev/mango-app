@@ -3,9 +3,10 @@ import { permissions } from '../db/schemas/permissions';
 import { rolePermissions } from '../db/schemas/role_permission';
 import { users } from '../db/schemas/users';
 import { userRoles } from '../db/schemas/user_roles';
-import { eq, and, inArray, sql, ne } from 'drizzle-orm';
+import { eq, and, inArray, sql, ne, asc, desc } from 'drizzle-orm';
 import { db } from '../db';
 import { BaseModel } from "./BaseModel";
+import { Permission, Role } from '@/types/rbac';
 
 
 export type RoleSelect = typeof roles.$inferSelect;
@@ -55,14 +56,10 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
     );
   }
 
-  /**
-   * Override findById to hide super-admin role from non-super-admins
-   */
   async findById(id: number, options?: { isSuperAdmin?: boolean }) {
     try {
       const conditions = [eq(roles.id, id)];
       
-      // Only hide super-admin if requester is not a super-admin
       if (!options?.isSuperAdmin) {
         conditions.push(ne(roles.slug, 'super-admin'));
       }
@@ -93,34 +90,152 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
     }
   }
 
-  async list(options?: { isSuperAdmin?: boolean }) {  
+  async getById(id: number): Promise<{ success: boolean; data?: Role; error?: string }> {
     try {
-      const query = db
-        .select(
-          {
-            id: roles.id,
-            name: roles.name,
-            slug: roles.slug,
-            permissionCount: sql<number>`COUNT(${rolePermissions.permissionId})`.as('permissionCount'),
-            userCount: sql<number>`(SELECT COUNT(*) FROM ${userRoles} WHERE ${userRoles.roleId} = ${roles.id})`.as('userCount'),
-            description: roles.description,
-            isActive: roles.isActive,
-            createdAt: roles.createdAt,
-            updatedAt: roles.updatedAt,
-          }
-        )
+      const [roleWithPermissions] = await db
+        .select({
+          id: roles.id,
+          name: roles.name,
+          slug: roles.slug,
+          description: roles.description,
+          isActive: roles.isActive,
+          createdAt: roles.createdAt,
+          updatedAt: roles.updatedAt,
+          permissions: sql<Permission[]>`
+            COALESCE(
+              JSON_AGG(
+                DISTINCT jsonb_build_object(
+                  'id', ${permissions.id},
+                  'name', ${permissions.name},
+                  'description', ${permissions.description},
+                  'resource', ${permissions.resource},
+                  'action', ${permissions.action},
+                  'createdAt', ${permissions.createdAt},
+                  'updatedAt', ${permissions.updatedAt}
+                )
+              ) FILTER (WHERE ${permissions.id} IS NOT NULL),
+              '[]'::json
+            )
+          `
+        })
         .from(roles)
         .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
-        .leftJoin(userRoles, eq(roles.id, userRoles.roleId));
+        .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+        .where(eq(roles.id, id))
+        .groupBy(roles.id, roles.name, roles.slug, roles.description, roles.isActive, roles.createdAt, roles.updatedAt);
 
-      // Only hide super-admin if requester is not a super-admin
-      const allRoles = options?.isSuperAdmin 
-        ? await query.groupBy(roles.id).orderBy(roles.createdAt)
-        : await query.where(ne(roles.slug, 'super-admin')).groupBy(roles.id).orderBy(roles.createdAt);
+      if (!roleWithPermissions) {
+        return {
+          success: false,
+          error: 'Role not found'
+        };
+      }
 
       return {
         success: true,
-        data: allRoles
+        data: roleWithPermissions as any
+      };
+    } catch (error) {
+      console.error('RoleModel getById error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch role by ID'
+      };
+    }
+  }
+
+  async getByName(name: string): Promise<{ success: boolean; data?: Role; error?: string }> {
+    try {
+      const [roleWithPermissions] = await db
+        .select({
+          id: roles.id,
+          name: roles.name,
+          slug: roles.slug,
+          description: roles.description,
+          isActive: roles.isActive,
+          createdAt: roles.createdAt,
+          updatedAt: roles.updatedAt,
+          permissions: sql<Permission[]>`
+            COALESCE(
+              JSON_AGG(
+                DISTINCT jsonb_build_object(
+                  'id', ${permissions.id},
+                  'name', ${permissions.name},
+                  'description', ${permissions.description},
+                  'resource', ${permissions.resource},
+                  'action', ${permissions.action},
+                  'createdAt', ${permissions.createdAt},
+                  'updatedAt', ${permissions.updatedAt}
+                )
+              ) FILTER (WHERE ${permissions.id} IS NOT NULL),
+              '[]'::json
+            )
+          `
+        })
+        .from(roles)
+        .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
+        .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+        .where(eq(roles.name, name))
+        .groupBy(roles.id, roles.name, roles.slug, roles.description, roles.isActive, roles.createdAt, roles.updatedAt);
+
+      if (!roleWithPermissions) {
+        return {
+          success: false,
+          error: 'Role not found'
+        };
+      }
+
+      return {
+        success: true,
+        data: roleWithPermissions as any
+      };
+    } catch (error) {
+      console.error('RoleModel getByName error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch role by name'
+      };
+    }
+  }
+
+  async list() {  
+    try {
+      const rolesWithPermissions = await db
+        .select({
+          id: roles.id,
+          name: roles.name,
+          slug: roles.slug,
+          description: roles.description,
+          isActive: roles.isActive,
+          isSystemRole: roles.isSystemRole,
+          createdAt: roles.createdAt,
+          updatedAt: roles.updatedAt,
+          permissions: sql<Permission[]>`
+            COALESCE(
+              JSON_AGG(
+                DISTINCT jsonb_build_object(
+                  'id', ${permissions.id},
+                  'name', ${permissions.name},
+                  'resource', ${permissions.resource},
+                  'action', ${permissions.action},
+                  'description', ${permissions.description},
+                  'createdAt', ${permissions.createdAt},
+                  'updatedAt', ${permissions.updatedAt}
+                )
+              ) FILTER (WHERE ${permissions.id} IS NOT NULL),
+              '[]'::json
+            )
+          `
+        })
+        .from(roles)
+        .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
+        .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+        .groupBy(roles.id, roles.name, roles.slug, roles.description, roles.isActive, roles.isSystemRole, roles.createdAt, roles.updatedAt)
+        .orderBy(asc(roles.name));
+
+      return {
+        success: true,
+        data: rolesWithPermissions
       };
     } catch (error) {
       console.error('RoleModel list error:', error);
@@ -135,7 +250,6 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
     try {
       const conditions = [eq(roles.id, roleId)];
       
-      // Only hide super-admin if requester is not a super-admin
       if (!options?.isSuperAdmin) {
         conditions.push(ne(roles.slug, 'super-admin'));
       }
@@ -149,19 +263,28 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
           isActive: roles.isActive,
           createdAt: roles.createdAt,
           updatedAt: roles.updatedAt,
-          permissionId: permissions.id,
-          permissionName: permissions.name,
-          permissionSlug: permissions.slug,
-          permissionDescription: permissions.description,
-          permissionResource: permissions.resource,
-          permissionAction: permissions.action,
-          permissionCreatedAt: permissions.createdAt,
-          permissionUpdatedAt: permissions.updatedAt,
+          permissions: sql<Permission[]>`
+            COALESCE(
+              JSON_AGG(
+                DISTINCT jsonb_build_object(
+                  'id', ${permissions.id},
+                  'name', ${permissions.name},
+                  'description', ${permissions.description},
+                  'resource', ${permissions.resource},
+                  'action', ${permissions.action},
+                  'createdAt', ${permissions.createdAt},
+                  'updatedAt', ${permissions.updatedAt}
+                )
+              ) FILTER (WHERE ${permissions.id} IS NOT NULL),
+              '[]'::json
+            )
+          `
         })
         .from(roles)
         .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
         .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-        .where(and(...conditions));
+        .where(and(...conditions))
+        .groupBy(roles.id, roles.name, roles.slug, roles.description, roles.isActive, roles.createdAt, roles.updatedAt);
 
       if (!roleWithPermissions.length) {
         return {
@@ -170,34 +293,9 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
         };
       }
 
-      const role = roleWithPermissions[0];
-      const groupedPermissions = roleWithPermissions
-        .filter(row => row.permissionId !== null)
-        .map(row => ({
-          id: row.permissionId!,
-          name: row.permissionName!,
-          slug: row.permissionSlug!,
-          description: row.permissionDescription,
-          resource: row.permissionResource!,
-          action: row.permissionAction!,
-          createdAt: row.permissionCreatedAt!,
-          updatedAt: row.permissionUpdatedAt!,
-        }));
-
-      const result: RoleWithPermissions = {
-        id: role.id,
-        name: role.name,
-        slug: role.slug,
-        description: role.description,
-        isActive: role.isActive,
-        createdAt: role.createdAt,
-        updatedAt: role.updatedAt,
-        permissions: groupedPermissions
-      };
-
       return {
         success: true,
-        data: result
+        data: roleWithPermissions[0]
       };
     } catch (error) {
       console.error('RoleModel findWithPermissions error:', error);
@@ -591,6 +689,145 @@ export class RoleModel extends BaseModel<RoleSelect, RoleInsert> {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to delete role'
+      };
+    }
+  }
+
+  async getAllWithFilters(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    name?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  } = {}) {
+    try {
+      const { page = 1, limit = 10, search, name, sortBy = 'name', sortOrder = 'asc' } = options;
+      const offset = (page - 1) * limit;
+
+      // Build where conditions
+      const conditions: any[] = [];
+      
+      if (search) {
+        conditions.push(
+          sql`(
+            ${roles.name} ILIKE ${`%${search}%`} OR 
+            ${roles.slug} ILIKE ${`%${search}%`} OR
+            (${roles.description} IS NOT NULL AND ${roles.description} ILIKE ${`%${search}%`})
+          )`
+        );
+      } else if (name) {
+        conditions.push(
+          sql`(
+            ${roles.name} ILIKE ${`%${name}%`} OR 
+            ${roles.slug} ILIKE ${`%${name}%`} OR
+            (${roles.description} IS NOT NULL AND ${roles.description} ILIKE ${`%${name}%`})
+          )`
+        );
+      }
+
+      console.log('⚙️ Total conditions built:', conditions.length);
+      
+      if (search) {
+        conditions.push(
+          sql`(
+            ${roles.name} ILIKE ${`%${search}%`} OR 
+            ${roles.slug} ILIKE ${`%${search}%`} OR
+            (${roles.description} IS NOT NULL AND ${roles.description} ILIKE ${`%${search}%`})
+          )`
+        );
+      }
+      
+      if (name) {
+        conditions.push(eq(roles.name, name));
+      }
+
+      // Build order by
+      let orderByClause;
+      if (sortBy === 'name') {
+        orderByClause = sortOrder === 'desc' ? desc(roles.name) : asc(roles.name);
+      } else if (sortBy === 'createdAt') {
+        orderByClause = sortOrder === 'desc' ? desc(roles.createdAt) : asc(roles.createdAt);
+      } else {
+        orderByClause = asc(roles.name);
+      }
+
+      // Get total count for pagination
+      console.log('📊 Getting total count...');
+      const countQuery = db
+        .select({ count: sql<number>`count(*)` })
+        .from(roles)
+        .where(conditions.length > 0 ? and(...conditions) : undefined);
+      
+      const [{ count: total }] = await countQuery;
+      console.log('📈 Total count found:', total);
+
+      // Get filtered and paginated roles with permissions
+      console.log('🔍 Executing main query...');
+      const rolesWithPermissions = await db
+        .select({
+          id: roles.id,
+          name: roles.name,
+          slug: roles.slug,
+          description: roles.description,
+          isActive: roles.isActive,
+          isSystemRole: roles.isSystemRole,
+          createdAt: roles.createdAt,
+          updatedAt: roles.updatedAt,
+          permissions: sql<Permission[]>`
+            COALESCE(
+              JSON_AGG(
+                DISTINCT jsonb_build_object(
+                  'id', ${permissions.id},
+                  'name', ${permissions.name},
+                  'resource', ${permissions.resource},
+                  'action', ${permissions.action},
+                  'description', ${permissions.description},
+                  'createdAt', ${permissions.createdAt},
+                  'updatedAt', ${permissions.updatedAt}
+                )
+              ) FILTER (WHERE ${permissions.id} IS NOT NULL),
+              '[]'::json
+            )
+          `
+        })
+        .from(roles)
+        .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
+        .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .groupBy(roles.id, roles.name, roles.slug, roles.description, roles.isActive, roles.isSystemRole, roles.createdAt, roles.updatedAt)
+        .orderBy(orderByClause)
+        .limit(limit)
+        .offset(offset);
+
+      console.log('✅ Query executed, found', rolesWithPermissions.length, 'roles');
+      console.log('🎯 First role (if any):', rolesWithPermissions[0]?.name);
+
+      const totalPages = Math.ceil(total / limit);
+
+      const result = {
+        success: true,
+        data: rolesWithPermissions,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages
+        }
+      };
+
+      console.log('📦 Returning result:', { 
+        success: result.success, 
+        dataLength: result.data.length, 
+        pagination: result.pagination 
+      });
+
+      return result;
+    } catch (error) {
+      console.error('RoleModel getAllWithFilters error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch roles with filters'
       };
     }
   }

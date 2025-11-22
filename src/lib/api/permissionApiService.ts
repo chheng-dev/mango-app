@@ -1,53 +1,75 @@
-import { ApiResponse } from "@/types/api";
-import { BaseApiService } from "./baseApiService";
-import { Permission, PermissionFilters } from "../types/permission";
-class PermissionApiService extends BaseApiService {
-  constructor() {
-    super('/api/rbac/permissions');
+import { apiClient } from '@/lib/api-client';
+import {
+  Role,
+  Permission,
+  User,
+  CreateRoleInput,
+  UpdateRoleInput,
+  CreatePermissionInput,
+} from '@/types/rbac';
+
+export class PermissionApiService {
+  static async getPermissions(): Promise<Permission[]> {
+    return apiClient.get<Permission[]>('/permissions');
   }
 
-  async getAllPermissions(filters: PermissionFilters): Promise<ApiResponse<Permission[]>> {
-    const params = new URLSearchParams();
-
-    if (filters.page) params.set("page", filters.page.toString());
-    if (filters.limit) params.set("limit", filters.limit.toString());
-    if (filters.query) params.set("query", filters.query);
-    if (filters.sortBy) params.set("sortBy", filters.sortBy);
-    if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
-    if (filters.resource) params.set("resource", filters.resource);
-    if (filters.action) params.set("action", filters.action);
-
-    return this.get<Permission[]>("", params);
+  static async getPermissionsByResource(resource: string): Promise<Permission[]> {
+    return apiClient.get<Permission[]>(`/permissions/resource/${resource}`);
   }
 
-  async getPermissionById(id: number): Promise<ApiResponse<Permission>> {
-    return await this.get<Permission>(`/${id}`);
+  static async createPermission(data: CreatePermissionInput): Promise<Permission> {
+    return apiClient.post<Permission>('/permissions', data);
   }
 
-  async createPermission(data: Partial<Permission>): Promise<ApiResponse<Permission>> {
-    return this.post<Permission>('', data);
+  // Role endpoints
+  static async getRoles(): Promise<Role[]> {
+    return apiClient.get<Role[]>('/roles');
   }
 
-  async updatePermission(id: number, data: Partial<Permission>): Promise<ApiResponse<Permission>> {
-    return this.put<Permission>(`/${id}`, data);
+  static async getRoleById(id: string): Promise<Role> {
+    return apiClient.get<Role>(`/roles/${id}`);
   }
 
-  async deletePermission(id: number): Promise<ApiResponse<boolean>> {
-    return this.delete<boolean>(`/${id}`);
+  static async createRole(data: CreateRoleInput): Promise<Role> {
+    return apiClient.post<Role>('/roles', data);
   }
 
-  async getPermissionsByResource(resource: string): Promise<ApiResponse<Permission[]>> {
-    return await this.get<Permission[]>('/permissions', new URLSearchParams({ resource }));
+  static async updateRole(id: string, data: UpdateRoleInput): Promise<Role> {
+    return apiClient.put<Role>(`/roles/${id}`, data);
   }
 
-  async getUniqueResources(): Promise<ApiResponse<string[]>> {
-    return await this.get<string[]>('/resources');
+  static async deleteRole(id: string): Promise<void> {
+    return apiClient.delete(`/roles/${id}`);
   }
 
-  async getPermissionsGroupedByResource(): Promise<ApiResponse<Record<string, Permission[]>>> {
-    return await this.get<Record<string, Permission[]>>('/grouped');
+  static async getUserWithRole(userId: string): Promise<User> {
+    return apiClient.get<User>(`/users/${userId}/permissions`);
+  }
+
+  static async assignRoleToUser(userId: string, roleId: string): Promise<void> {
+    return apiClient.put(`/users/${userId}/role`, { roleId });
+  }
+
+  // Permission check endpoints
+  static async checkUserPermission(
+    userId: string,
+    resource: string,
+    action: string
+  ): Promise<{ hasPermission: boolean }> {
+    return apiClient.get<{ hasPermission: boolean }>(
+      `/users/${userId}/permissions/check?resource=${resource}&action=${action}`
+    );
+  }
+
+  static async checkMultiplePermissions(
+    userId: string,
+    checks: Array<{ resource: string; action: string }>
+  ): Promise<{ hasAll: boolean; hasAny: boolean }> {
+    return apiClient.post<{ hasAll: boolean; hasAny: boolean }>(
+      `/users/${userId}/permissions/check-multiple`,
+      { checks }
+    );
   }
 }
 
 export const permissionApiService = new PermissionApiService();
-export default permissionApiService;

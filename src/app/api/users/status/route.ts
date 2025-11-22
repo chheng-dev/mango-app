@@ -1,8 +1,7 @@
+import { protectRoute } from '@/lib/auth/nextauth-unified';
 import { userController } from '@/lib/controllers/UserController';
-import { NextRequest } from 'next/server';
 import { handleApiResponse } from '@/lib/utils/BaseRoute';
-import { PERMISSIONS } from '@/lib/constants/permissions';
-import { protectRoute } from '@/lib/auth/unified';
+import { NextRequest } from 'next/server';
 
 export const PUT = protectRoute(
     async (request: NextRequest, { user }) => {
@@ -25,6 +24,8 @@ export const PUT = protectRoute(
 
     const result = await userController.updateStatus(userId, isActive);
     return handleApiResponse(result, user?.email);
+  }, {
+    requiredPermissions: ['user:update']
   });
 
 export const PATCH = protectRoute(
@@ -44,5 +45,7 @@ export const PATCH = protectRoute(
 
     const result = await userController.bulkUpdateStatus(ids, isActive);
     return handleApiResponse(result, user?.email);
+  }, {
+    requiredPermissions: ['user:update']
   }
 );

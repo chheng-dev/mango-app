@@ -1,8 +1,8 @@
 'use client';
 
+import HeaderSection from '@/app/[locale]/admin/layouts/header-section';
 import { MobileNav } from './mobile-nav';
 import { ThemeToggle } from './theme-toggle';
-import HeaderSection from '@/app/admin/layouts/header-section';
 
 export function AdminHeader() {
   return (

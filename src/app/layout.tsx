@@ -1,9 +1,6 @@
+import { Provider } from "@/providers/Provider";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { QueryProvider } from "@/providers/QueryProvider";
-import { AuthProvider } from "@/store/authStore";
-import { LoadingProvider } from "@/providers/LoadingProvider";
 
 export const metadata: Metadata = {
   title: "ManageX",
@@ -18,13 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <QueryProvider>
-          <AuthProvider>
-            <LoadingProvider>
-              {children}
-            </LoadingProvider>
-          </AuthProvider>
-        </QueryProvider>
+        <Provider>
+          {children}
+        </Provider>
       </body>
     </html>
   );

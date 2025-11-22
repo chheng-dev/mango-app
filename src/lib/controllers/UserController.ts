@@ -24,8 +24,28 @@ export class UserController extends ModelController<UserSelect, UserInsert, User
   }
 
   async getWithRoles(userId: number) {
-    const result = await this.model.findByIdWithRoleId(userId);
-    return this.convertResponse<UserSelect & { roleId?: number; roles?: number[] }>(result as any);
+    const result = await this.model.findById(userId);
+    if (!result.success) {
+      return this.convertResponse<UserSelect & { roles?: number[] }>(result);
+    }
+
+    // Get user roles
+    const roleIds = await this.model.getUserRoleIds(userId);
+
+    const resultWithRoles = {
+      ...result,
+      data: {
+        ...result.data,
+        roles: roleIds
+      }
+    };
+
+    return this.convertResponse<UserSelect & { roles?: number[] }>(resultWithRoles as any);
+  }
+
+  async getById(userId: number): Promise<ApiResponse<UserSelect>> {
+    const result = await this.model.findById(userId);
+    return this.convertResponse<UserSelect>(result);
   }
 
   async getByEmail(email: string): Promise<ApiResponse<UserSelect>> {
@@ -68,8 +88,21 @@ export class UserController extends ModelController<UserSelect, UserInsert, User
     return this.convertResponse<boolean>(result);
   }
 
+  async getUserPermissionsDetailed(userId: number): Promise<Array<{
+    id: number;
+    name: string;
+    resource: string;
+    action: string;
+  }>> {
+    return await this.model.getUserPermissionsDetailed(userId);
+  }
+
   async getUserPermissions(userId: number): Promise<string[]> {
     return await this.model.getUserPermissions(userId);
+  }
+
+  async getUserPermissionsGrouped(userId: number): Promise<Record<string, string[]>> {
+    return await this.model.getUserPermissionsGrouped(userId);
   }
 
   async getUserRoles(userId: number): Promise<string[]> {
@@ -80,10 +113,14 @@ export class UserController extends ModelController<UserSelect, UserInsert, User
     return await this.model.isSuperAdmin(userId);
   }
 
+  async hasPermissionById(userId: number, permissionId: number): Promise<boolean> {
+    return await this.model.hasPermissionById(userId, permissionId);
+  }
+
   protected validateCreateData(data: UserInsert): ApiResponse<any> | null {
     const hasPassword = 'password' in data && data.password;
     const hasPasswordHash = data.passwordHash;
-    
+
     if (!hasPassword && !hasPasswordHash) {
       return {
         success: false,
@@ -94,9 +131,9 @@ export class UserController extends ModelController<UserSelect, UserInsert, User
     const requiredFields = ['email', 'name'];
     const errors = this.validateRequiredFields(data, requiredFields);
     if (errors.length) {
-      return { 
-        success: false, 
-        error: errors.map(e => e.message).join(', ') 
+      return {
+        success: false,
+        error: errors.map(e => e.message).join(', ')
       };
     }
 
@@ -144,14 +181,14 @@ export class UserController extends ModelController<UserSelect, UserInsert, User
 
   private validateEmail(email: string): ApiResponse<any> | null {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email) ? null : { 
-      success: false, 
-      error: 'Invalid email format' 
+    return emailRegex.test(email) ? null : {
+      success: false,
+      error: 'Invalid email format'
     };
   }
 
   protected async beforeCreate(data: UserInsert): Promise<UserInsert> {
-    const processedData = { 
+    const processedData = {
       ...data,
       email: data.email.toLowerCase(),
       code: data.code || `USER_${Date.now()}`,
@@ -176,7 +213,7 @@ export class UserController extends ModelController<UserSelect, UserInsert, User
 
   protected async beforeUpdate(id: number, data: Partial<UserInsert>): Promise<Partial<UserInsert>> {
     const processedData = { ...data };
-    
+
     if (processedData.email) {
       processedData.email = processedData.email.toLowerCase();
     }
@@ -203,7 +240,7 @@ export class UserController extends ModelController<UserSelect, UserInsert, User
   async update(id: number, data: UserUpdateInput): Promise<ApiResponse<UserSelect>> {
     try {
       const { roles, ...userData } = data;
-      
+
       const userResult = await super.update(id, userData);
       if (!userResult.success) {
         return userResult;

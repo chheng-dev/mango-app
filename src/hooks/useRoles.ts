@@ -1,40 +1,51 @@
-import { roleApiService } from '@/lib/api/roleApiService';
-import { useBaseEntity } from './useBaseEntity';
-import { CreateRoleData, UpdateRoleData } from '@/lib/types/role';
+import { useBaseMutation, useBaseQuery } from "./useBaseApi";
+import { RoleApiService } from "@/lib/api/roleApiService";
+import { Role } from "@/lib/types/role";
+import { useUser } from "@/providers/user-provider";
+import { CreateRoleInput, UpdateRoleInput } from "@/types/rbac";
 
-const roleApiAdapter = {
-  getAll: (filters?: any) => roleApiService.getAllRoles(filters),
-  getById: (id: number) => roleApiService.getRoleById(id),
-  create: (data: CreateRoleData) => roleApiService.createRole(data),
-  update: (id: number, data: UpdateRoleData) => roleApiService.updateRole(id, data),
-  delete: (id: number) => roleApiService.deleteRole(id),
+export const roleKeys = {
+  all: ['roles'] as const,
+  lists: () => [...roleKeys.all, 'list'],
+  list: (filters: any) => [...roleKeys.lists(), { filters }],
+  details: () => [...roleKeys.all, 'detail'],
+  detail: (id: string) => [...roleKeys.details(), id],
 };
 
 export function useRoles() {
-  const baseEntity = useBaseEntity(roleApiAdapter as any, { page: 1, limit: 10 }, 'roles');
+  const { user, isLoading } = useUser();
 
-  const countPermissionsForRole = async (roleId: number) => {
-    return await roleApiService.countPermissions(roleId);
-  };
-
-  const countUsersForRole = async (roleId: number) => {
-    return await roleApiService.countUsers(roleId);
-  };
-
-  return {
-    ...baseEntity,
-    roles: baseEntity.items,
-    fetchRoles: baseEntity.fetchItems,
-    createRole: baseEntity.createItem,
-    updateRole: baseEntity.updateItem,
-    deleteRole: baseEntity.deleteItem,
-    updateRoleStatus: baseEntity.updateItemStatus,
-    getRoleById: baseEntity.getItemById,
-    updateFilters: baseEntity.updateFilters,
-    clearFilters: baseEntity.clearFilters,
-    clearError: baseEntity.clearError,
-    handleSubmit: baseEntity.handleSubmit,
-    countPermissionsForRole,
-    countUsersForRole,
-  };
+  return useBaseQuery<Role[]>(
+    roleKeys.lists(),
+    '/roles',
+    {
+      enabled: !!user && !isLoading,
+      retry: false,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      staleTime: 5 * 60 * 1000,
+    }
+  );
 }
+
+export function useRoleById(id: string) {
+  return useBaseQuery<Role>(
+    roleKeys.detail(id),
+    `/roles/${id}`,
+    {
+      enabled: !!id,
+    }
+  );
+}
+
+export function useCreateRole() {
+  return useBaseMutation<Role, CreateRoleInput>(
+    (data: CreateRoleInput) => RoleApiService.createRole(data),
+  );
+}
+
+export function useUpdateRole(id: string) {
+  return useBaseMutation<Role, UpdateRoleInput>(
+    (data: UpdateRoleInput) => RoleApiService.updateRole(id, data),
+  );
+} 

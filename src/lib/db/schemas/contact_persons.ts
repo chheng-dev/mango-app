@@ -1,7 +1,6 @@
 import { pgTable, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { customers } from "./customers";
-import { sql } from "drizzle-orm";
 
 export const contactPersons = pgTable("tbl_contactPerson", {
   cpCode: varchar("cpCode", { length: 25 }).primaryKey(),

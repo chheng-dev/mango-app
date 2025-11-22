@@ -3,16 +3,34 @@ import { useAuth } from '@/store/authStore';
 import { queryKeys } from '@/lib/queries/queryKeys';
 
 export interface UserPermissionData {
-  permissions: string[];
+  permissions: Array<{
+    id: number;
+    slug: string;
+    name: string;
+    resource: string;
+    action: string;
+  }>;
+  permissionSlugs: string[];
+  permissionIds: number[];
   isSuperAdmin: boolean;
 }
 
 export interface UseUserPermissionsReturn {
-  permissions: string[];
+  permissions: Array<{
+    id: number;
+    slug: string;
+    name: string;
+    resource: string;
+    action: string;
+  }>;
+  permissionSlugs: string[];
+  permissionIds: number[];
   isSuperAdmin: boolean;
   isLoading: boolean;
   isError: boolean;
   hasPermission: (requiredPermissions: readonly string[]) => boolean;
+  hasPermissionById: (permissionId: number) => boolean;
+  hasAnyPermissionById: (permissionIds: readonly number[]) => boolean;
   canPerformAction: (resource: string, action: string) => boolean;
   hasAnyPermission: (permissionList: readonly string[]) => boolean;
   canPerformAnyAction: (resource: string, actions: readonly string[]) => boolean;
@@ -59,32 +77,23 @@ class PermissionsAPI {
 
   private static transformPermissionData(result: any): UserPermissionData {
     try {
-      if (result.meta?.isSuperAdmin) {
-        return {
-          permissions: result.data?.permissions || [],
-          isSuperAdmin: true
-        };
-      }
+      const permissions = result.data?.permissions || [];
+      const permissionSlugs = result.data?.permissionSlugs || permissions.map((p: any) => p.slug);
+      const permissionIds = result.data?.permissionIds || permissions.map((p: any) => p.id);
+      const isSuperAdmin = result.meta?.isSuperAdmin || false;
 
-      if (result.data?.permissions && Array.isArray(result.data.permissions)) {
-        return {
-          permissions: result.data.permissions,
-          isSuperAdmin: false
-        };
-      }
-
-      const permissions = result.data?.map((p: any) => 
-        p.permission || `${p.resource}:${p.action}`
-      ) || [];
-      
       return {
         permissions,
-        isSuperAdmin: false
+        permissionSlugs,
+        permissionIds,
+        isSuperAdmin
       };
     } catch (error) {
       console.error('Error transforming permission data:', error);
       return {
         permissions: [],
+        permissionSlugs: [],
+        permissionIds: [],
         isSuperAdmin: false
       };
     }
@@ -92,18 +101,36 @@ class PermissionsAPI {
 }
 
 class PermissionChecker {
+  private permissionSlugs: string[];
+  private permissionIds: Set<number>;
+  
   constructor(
-    private permissions: string[],
+    private permissions: Array<{id: number; slug: string; name: string; resource: string; action: string}>,
     private isSuperAdmin: boolean
-  ) {}
+  ) {
+    this.permissionSlugs = permissions.map(p => p.slug);
+    this.permissionIds = new Set(permissions.map(p => p.id));
+  }
 
   hasPermission(requiredPermissions: readonly string[]): boolean {
     if (this.isSuperAdmin) return true;
     if (requiredPermissions.length === 0) return true;
     
     return requiredPermissions.some(permission => 
-      this.permissions.includes(permission)
+      this.permissionSlugs.includes(permission)
     );
+  }
+
+  hasPermissionById(permissionId: number): boolean {
+    if (this.isSuperAdmin) return true;
+    return this.permissionIds.has(permissionId);
+  }
+
+  hasAnyPermissionById(permissionIds: readonly number[]): boolean {
+    if (this.isSuperAdmin) return true;
+    if (permissionIds.length === 0) return true;
+    
+    return permissionIds.some(id => this.permissionIds.has(id));
   }
 
   canPerformAction(resource: string, action: string): boolean {
@@ -111,8 +138,8 @@ class PermissionChecker {
     
     if (!resource || !action) return false;
     
-    const requiredPermission = `${resource}:${action}`;
-    return this.permissions.includes(requiredPermission);
+    const requiredPermission = `${resource}_${action}`; // Changed from : to _
+    return this.permissionSlugs.includes(requiredPermission);
   }
 
   hasAnyPermission(permissionList: readonly string[]): boolean {
@@ -121,7 +148,7 @@ class PermissionChecker {
     if (permissionList.length === 0) return true;
     
     return permissionList.some(permission => 
-      this.permissions.includes(permission)
+      this.permissionSlugs.includes(permission)
     );
   }
 
@@ -130,87 +157,119 @@ class PermissionChecker {
     if (!resource || actions.length === 0) return false;
     
     return actions.some(action => 
-      this.permissions.includes(`${resource}:${action}`)
+      this.permissionSlugs.includes(`${resource}_${action}`) // Changed from : to _
     );
   }
 
   getResourcePermissions(resource: string): string[] {
     if (!resource) return [];
     
-    return this.permissions.filter(permission => 
-      permission.startsWith(`${resource}:`)
+    return this.permissionSlugs.filter(permission => 
+      permission.startsWith(`${resource}_`) // Changed from : to _
     );
   }
 }
 
 export function useUserPermissions(): UseUserPermissionsReturn {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  // const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
-  const query = useQuery({
-    queryKey: queryKeys.auth.permissions(user?.id || 0),
-    queryFn: () => {
-      if (!user?.id) {
-        throw new Error('No user ID available for permissions fetch');
-      }
-      return PermissionsAPI.fetchUserPermissions(user.id);
-    },
-    enabled: !!(isAuthenticated && user?.id && !authLoading),
-    staleTime: PERMISSIONS_CONFIG.staleTime,
-    gcTime: PERMISSIONS_CONFIG.gcTime,
-    retry: PERMISSIONS_CONFIG.retry,
-    refetchOnWindowFocus: PERMISSIONS_CONFIG.refetchOnWindowFocus,
-    refetchOnMount: PERMISSIONS_CONFIG.refetchOnMount,
-  });
+  // const query = useQuery({
+  //   queryKey: queryKeys.auth.permissions(user?.id || 0),
+  //   queryFn: () => {
+  //     if (!user?.id) {
+  //       throw new Error('No user ID available for permissions fetch');
+  //     }
+  //     return PermissionsAPI.fetchUserPermissions(user.id);
+  //   },
+  //   enabled: !!(isAuthenticated && user?.id && !authLoading),
+  //   staleTime: PERMISSIONS_CONFIG.staleTime,
+  //   gcTime: PERMISSIONS_CONFIG.gcTime,
+  //   retry: PERMISSIONS_CONFIG.retry,
+  //   refetchOnWindowFocus: PERMISSIONS_CONFIG.refetchOnWindowFocus,
+  //   refetchOnMount: PERMISSIONS_CONFIG.refetchOnMount,
+  // });
 
-  const {
-    data: permissionData,
-    isLoading: permissionsLoading,
-    isError,
-    refetch
-  } = query;
+  // const {
+  //   data: permissionData,
+  //   isLoading: permissionsLoading,
+  //   isError,
+  //   refetch
+  // } = query;
 
-  const permissions = permissionData?.permissions || [];
-  const isSuperAdmin = permissionData?.isSuperAdmin || false;
-  const isLoading = authLoading || permissionsLoading;
+  // const permissions = permissionData?.permissions || [];
+  // const permissionSlugs = permissionData?.permissionSlugs || [];
+  // const permissionIds = permissionData?.permissionIds || [];
+  // const isSuperAdmin = permissionData?.isSuperAdmin || false;
+  // const isLoading = authLoading || permissionsLoading;
 
-  const checker = new PermissionChecker(permissions, isSuperAdmin);
+  // const checker = new PermissionChecker(permissions, isSuperAdmin);
 
+  // return {
+  //   permissions,
+  //   permissionSlugs,
+  //   permissionIds,
+  //   isSuperAdmin,
+  //   isLoading,
+  //   isError,
+  //   hasPermission: (requiredPermissions) => {
+  //     if (!isAuthenticated || authLoading || permissionsLoading) {
+  //       return false;
+  //     }
+  //     return checker.hasPermission(requiredPermissions);
+  //   },
+  //   hasPermissionById: (permissionId) => {
+  //     if (!isAuthenticated || authLoading || permissionsLoading) {
+  //       return false;
+  //     }
+  //     return checker.hasPermissionById(permissionId);
+  //   },
+  //   hasAnyPermissionById: (permissionIds) => {
+  //     if (!isAuthenticated || authLoading || permissionsLoading) {
+  //       return false;
+  //     }
+  //     return checker.hasAnyPermissionById(permissionIds);
+  //   },
+  //   canPerformAction: (resource, action) => {
+  //     if (!isAuthenticated || authLoading || permissionsLoading) {
+  //       return false;
+  //     }
+  //     return checker.canPerformAction(resource, action);
+  //   },
+  //   hasAnyPermission: (permissionList) => {
+  //     if (!isAuthenticated || authLoading || permissionsLoading) {
+  //       return false;
+  //     }
+  //     return checker.hasAnyPermission(permissionList);
+  //   },
+  //   canPerformAnyAction: (resource, actions) => {
+  //     if (!isAuthenticated || authLoading || permissionsLoading) {
+  //       return false;
+  //     }
+  //     return checker.canPerformAnyAction(resource, actions);
+  //   },
+  //   getResourcePermissions: (resource) => {
+  //     if (!isAuthenticated || authLoading || permissionsLoading) {
+  //       return [];
+  //     }
+  //     return checker.getResourcePermissions(resource);
+  //   },
+  //   refetch: () => refetch(),
+  // };
   return {
-    permissions,
-    isSuperAdmin,
-    isLoading,
-    isError,
-    hasPermission: (requiredPermissions) => {
-      if (!isAuthenticated || authLoading || permissionsLoading) {
-        return false;
-      }
-      return checker.hasPermission(requiredPermissions);
-    },
-    canPerformAction: (resource, action) => {
-      if (!isAuthenticated || authLoading || permissionsLoading) {
-        return false;
-      }
-      return checker.canPerformAction(resource, action);
-    },
-    hasAnyPermission: (permissionList) => {
-      if (!isAuthenticated || authLoading || permissionsLoading) {
-        return false;
-      }
-      return checker.hasAnyPermission(permissionList);
-    },
-    canPerformAnyAction: (resource, actions) => {
-      if (!isAuthenticated || authLoading || permissionsLoading) {
-        return false;
-      }
-      return checker.canPerformAnyAction(resource, actions);
-    },
-    getResourcePermissions: (resource) => {
-      if (!isAuthenticated || authLoading || permissionsLoading) {
-        return [];
-      }
-      return checker.getResourcePermissions(resource);
-    },
-    refetch: () => refetch(),
+    permissions: [],
+    permissionSlugs: [],
+    permissionIds: [],
+    isSuperAdmin: false,
+    isLoading: false,
+    isError: false,
+    hasPermission: () => false,
+    hasPermissionById: () => false, 
+    hasAnyPermissionById: () => false,
+    canPerformAction: () => false,
+    hasAnyPermission: () => false,
+    canPerformAnyAction: () => false,
+    getResourcePermissions: () => [],   
+    refetch: () => {},    
   };
 }
 

@@ -11,16 +11,19 @@
     "db:migrate": "bash ./scripts/migrate.sh",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
+    "sync:roles": "tsx scripts/sync-roles.ts",
     "migration:new": "node scripts/generate-migration.mjs",
     "migration:run": "node scripts/migrate.mjs",
     "db:backup": "node scripts/backup.mjs backup",
     "db:restore": "node scripts/backup.mjs restore",
-    "rbac:sync": "tsx scripts/sync-rbac.ts",
+    "sync-permissions": "tsx scripts/sync-permissions.ts",
     "rbac:sync:cleanup": "tsx scripts/sync-rbac.ts --cleanup",
     "rbac:seed-permissions": "tsx scripts/seed-permissions.ts",
     "rbac:assign-admin": "tsx scripts/assign-admin-role.ts",
     "rbac:assign-superadmin": "tsx scripts/assign-superadmin-role.ts",
-    "rbac:complete-setup": "tsx scripts/complete-rbac-setup.ts"
+    "rbac:assign-superadmin-permissions": "tsx scripts/assign-superadmin-permissions.ts",
+    "rbac:complete-setup": "tsx scripts/complete-rbac-setup.ts",
+    "test:users": "tsx scripts/test-get-users.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

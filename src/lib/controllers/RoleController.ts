@@ -1,6 +1,7 @@
 import { ApiResponse } from '@/types/api';
 import { RoleModel, RoleSelect, RoleInsert } from '../models/RoleModel';
 import { ModelController } from './ModelController';
+import { Role } from '../types/role';
 
 export class RoleController extends ModelController<RoleSelect, RoleInsert, RoleModel> {
   
@@ -8,8 +9,23 @@ export class RoleController extends ModelController<RoleSelect, RoleInsert, Role
     super(new RoleModel());
   }
 
-  async getAll(options?: { page?: number; limit?: number; query?: string; sortBy?: string; sortOrder?: 'asc' | 'desc'; filters?: Record<string, string | number | boolean>; isSuperAdmin?: boolean }) {
-    const result = await this.model.list({ isSuperAdmin: options?.isSuperAdmin });
+  async getAll(options?: { 
+    page?: number; 
+    limit?: number; 
+    name?: string; 
+    search?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }) {    
+    const result = await this.model.getAllWithFilters({
+      page: options?.page,
+      limit: options?.limit,
+      name: options?.name,
+      search: options?.search,
+      sortBy: options?.sortBy,
+      sortOrder: options?.sortOrder
+    });
+    
     return this.convertResponse<RoleSelect[]>(result as any);
   }
 
@@ -18,8 +34,8 @@ export class RoleController extends ModelController<RoleSelect, RoleInsert, Role
     return this.convertResponse<RoleSelect>(result as any);
   }
 
-  async getById(id: number, options?: { isSuperAdmin?: boolean }): Promise<ApiResponse<RoleSelect>> {
-    const result = await this.model.findById(id, options);
+  async getById(id: number): Promise<ApiResponse<RoleSelect>> {
+    const result = await this.model.getById(id);
     return this.convertResponse<RoleSelect>(result as any);
   }
 
@@ -119,15 +135,17 @@ export class RoleController extends ModelController<RoleSelect, RoleInsert, Role
 
   protected async canDelete(id: number): Promise<{ allowed: boolean; reason?: string }> {
     const roleResult = await this.getById(id);
-    if (!roleResult.success) return { allowed: false, reason: 'Role not found' };
+    if (!roleResult.success || !roleResult.data) {
+      return { allowed: false, reason: 'Role not found' };
+    }
 
     const adminSlugs = ['admin', 'super-admin', 'root', 'system'];
-    if (adminSlugs.includes(roleResult.data?.slug || '')) {
+    if (adminSlugs.includes(roleResult.data.slug || '')) {
       return { allowed: false, reason: 'System roles cannot be deleted' };
     }
 
     return { allowed: true };
-  }
+  }   
 
   // Helper methods
   private generateSlug(name: string): string {

@@ -108,17 +108,20 @@ export function useBaseEntity<
   } = useQuery({
     queryKey: queryKeys.list(filters),
     queryFn: async () => {
+      console.log('🔍 useQuery queryFn executing with filters:', filters);
       const response = await apiService.getAll(filters);
+      console.log('📦 API response received:', response);
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch items');
       }
       if (response.pagination) {
+        console.log('📊 Setting pagination from API:', response.pagination);
         setPagination(response.pagination);
       }
       return response.data || [];
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (was cacheTime)
+    staleTime: 0, // Always treat data as stale - force fresh fetch
+    gcTime: 0, // Don't cache for pagination
     retry: 2,
     refetchOnWindowFocus: false,
   });
@@ -282,8 +285,16 @@ export function useBaseEntity<
 
   // Update filters
   const updateFilters = useCallback((newFilters: Partial<Filters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-  }, []);
+    console.log('🔧 useBaseEntity.updateFilters called with:', newFilters);
+    setFilters(prev => {
+      console.log('📋 Current filters before update:', prev);
+      const updated = { ...prev, ...newFilters };
+      console.log('📋 New filters after update:', updated);
+      return updated;
+    });
+    // Invalidate all list queries to force fresh fetch
+    queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+  }, [queryClient, queryKeys]); // Add dependencies for invalidation
 
   // Clear filters
   const clearFilters = useCallback(() => {

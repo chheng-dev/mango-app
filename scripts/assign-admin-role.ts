@@ -1,9 +1,3 @@
-#!/usr/bin/env tsx
-
-/**
- * Assign admin role to specific user by email
- */
-
 import { userController } from '@/lib/controllers/UserController';
 import { db } from '../src/lib/db';
 import { roles } from '../src/lib/db/schemas/roles';

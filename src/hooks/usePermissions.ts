@@ -1,60 +1,52 @@
-import { permissionApiService } from '@/lib/api/permissionApiService';
-import type { Permission, CreatePermissionData, UpdatePermissionData, PermissionFilters, ApiResponse } from '@/lib/types/permission';
-import { useBaseEntity } from './useBaseEntity';
+import { Permission, CreatePermissionInput } from '@/types/rbac';
+import { PermissionApiService } from '@/lib/api/permissionApiService';
+import { useBaseMutation, useBaseQuery } from './useBaseApi';
 
-const permissionApiAdapter = {
-  getAll: (filters?: PermissionFilters) => permissionApiService.getAllPermissions(filters as PermissionFilters),
-  getById: (id: number) => permissionApiService.getPermissionById(id),
-  create: (data: CreatePermissionData) => permissionApiService.createPermission(data),
-  update: (id: number, data: UpdatePermissionData) => permissionApiService.updatePermission(id, data),
-  delete: (id: number) => permissionApiService.deletePermission(id),
+export const permissionKeys = {
+  all: ['permissions'] as const,
+  lists: () => [...permissionKeys.all, 'list'],
+  list: (filters: any) => [...permissionKeys.lists(), { filters }],
+  details: () => [...permissionKeys.all, 'detail'],
+  detail: (id: string) => [...permissionKeys.details(), id],
+  byResource: (resource: string) => [...permissionKeys.all, 'resource', resource],
 };
 
+// Hooks
 export function usePermissions() {
-  const baseEntity = useBaseEntity(
-    permissionApiAdapter as any,
-    { page: 1, limit: 10 },
-    'permissions'
+  return useBaseQuery<Permission[]>(
+    permissionKeys.lists(),
+    '/permissions',
+    {
+      staleTime: 10 * 60 * 1000, 
+    }
   );
-
-  return {
-    permissions: baseEntity.items,
-    loading: baseEntity.loading,
-    error: baseEntity.error,
-    pagination: baseEntity.pagination,
-    filters: baseEntity.filters,
-    fetchPermissions: baseEntity.fetchItems,
-    createPermission: baseEntity.createItem,
-    updatePermission: baseEntity.updateItem,
-    deletePermission: baseEntity.deleteItem,
-    updatePermissionStatus: baseEntity.updateItemStatus,
-    getPermissionById: baseEntity.getItemById,
-    updateFilters: baseEntity.updateFilters,
-    clearFilters: baseEntity.clearFilters,
-    clearError: baseEntity.clearError,
-    handleSubmit: baseEntity.handleSubmit,
-  };
 }
 
-export function usePermissionsExtended() {
-  const base = usePermissions();
-
-  const getPermissionsByResource = async (resource: string): Promise<ApiResponse<Permission[]>> => {
-    return await permissionApiService.getPermissionsByResource(resource);
-  };
-
-  const getUniqueResources = async (): Promise<ApiResponse<string[]>> => {
-    return await permissionApiService.getUniqueResources();
-  };
-
-  const getPermissionsGroupedByResource = async (): Promise<ApiResponse<Record<string, Permission[]>>> => {
-    return await permissionApiService.getPermissionsGroupedByResource();
-  };
-
-  return {
-    ...base,
-    getPermissionsByResource,
-    getUniqueResources,
-    getPermissionsGroupedByResource,
-  };
+export function usePermissionsByResource(resource: string) {
+  return useBaseQuery<Permission[]>(
+    permissionKeys.byResource(resource),
+    `/permissions/resource/${resource}`,
+    {
+      enabled: !!resource,
+    }
+  );
 }
+
+export function usePermissionById(id: string) {
+  return useBaseQuery<Permission>(
+    permissionKeys.detail(id),
+    `/permissions/${id}`,
+    {
+      enabled: !!id,
+    }
+  );
+}
+
+export function useCreatePermission() {
+  return useBaseMutation<Permission, CreatePermissionInput>(
+    (data: CreatePermissionInput) => PermissionApiService.createPermission(data),
+  );
+}
+
+// Note: For checking current user's permissions, use useHasPermissions() hook instead
+// These functions are for checking other users' permissions via API

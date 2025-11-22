@@ -146,7 +146,6 @@ export function DataTable<TData, TValue>({
   const [showScrollIndicator, setShowScrollIndicator] = useState({ left: false, right: false })
   const tableContainerRef = React.useRef<HTMLDivElement>(null)
 
-  // Check scroll position to show/hide scroll indicators
   const checkScrollPosition = useCallback(() => {
     const container = tableContainerRef.current
     if (!container) return
@@ -178,7 +177,7 @@ export function DataTable<TData, TValue>({
       setPageIndex(pagination.page - 1) 
       setPageSize(pagination.limit)
     }
-  }, [pagination])
+  }, [pagination?.page, pagination?.limit])
 
   useEffect(() => {
     setGlobalFilter(searchValue)

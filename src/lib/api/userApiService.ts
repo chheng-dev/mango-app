@@ -5,16 +5,23 @@ export class UserApiService extends BaseApiService {
     super('/api/users');
   }
 
-  getUsers(filters?: UserFilters): Promise<ApiResponse<User[]>> {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          params.append(key, value.toString());
-        }
-      });
+  async getUsers(filters?: UserFilters): Promise<ApiResponse<User[]>> {
+    try {
+      const params = new URLSearchParams();
+
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            params.append(key, value.toString());
+          }
+        });
+      }
+
+      return await this.get<User[]>('/', params);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error; // Let the caller handle the error
     }
-    return this.get<User[]>('/', params);
   }
 
   createUser(data: CreateUserData): Promise<ApiResponse<User>> {
